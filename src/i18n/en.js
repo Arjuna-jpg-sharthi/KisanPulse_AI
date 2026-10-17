@@ -25,7 +25,7 @@ export const en = {
 
   // Dashboard Overview
   dashboardWelcome: "Namaste, Kisan Bandhu!",
-  dashboardSubheader: "Real-time crop intelligence, mandi rates, and government schemes personalized for your farm.",
+  dashboardSubheader: "Daily-reported mandi rates, crop guidance, and government schemes for your farm.",
   kpiMandiAverage: "Mandi Price Index",
   kpiActiveCrops: "Monitored Crops",
   kpiSchemesEligible: "Eligible Schemes",
@@ -42,8 +42,8 @@ export const en = {
   actionFindSchemes: "Explore Subsidies",
 
   // Mandi Highlights
-  mandiHighlightsTitle: "Live APMC Mandi Ticker",
-  mandiSubtitle: "Real-time market rates and MSP comparisons across regional markets",
+  mandiHighlightsTitle: "Latest APMC Mandi Prices",
+  mandiSubtitle: "Daily-reported market prices from data.gov.in / AGMARKNET",
   viewAllMandi: "Open Smart Mandi Engine",
   crop: "Crop",
   market: "Mandi / Market",
@@ -63,7 +63,7 @@ export const en = {
 
   // Smart Mandi Module
   mandiPageTitle: "Smart Mandi & Farm Profit Engine",
-  mandiPageSubtitle: "Track commodity prices, predict price swings, and compute your net farm profitability before selling.",
+  mandiPageSubtitle: "Compare daily-reported commodity prices and estimate farm profitability before selling.",
   filterByCrop: "Filter by Commodity",
   allCrops: "All Crops",
   wheat: "Wheat (गेहूं)",
@@ -75,7 +75,7 @@ export const en = {
   chana: "Gram / Chana (चना)",
   soybean: "Soybean (सोयाबीन)",
   searchMandiPlaceholder: "Search by Mandi, State, or Crop...",
-  refreshRates: "Refresh Live Rates",
+  refreshRates: "Refresh Reported Prices",
 
   // Profit Calculator
   profitCalcTitle: "Farm Profit & Revenue Estimator",

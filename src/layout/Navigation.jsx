@@ -25,7 +25,7 @@ export const NAVIGATION_ITEMS = [
     labelKey: 'navMandi',
     defaultLabel: 'Smart Mandi & Profit',
     icon: TrendingUp,
-    badge: 'Live'
+    badge: 'Daily'
   },
   {
     id: 'marketplace',

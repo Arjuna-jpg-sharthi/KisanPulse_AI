@@ -25,7 +25,7 @@ export const hi = {
 
   // Dashboard Overview
   dashboardWelcome: "नमस्ते, किसान बंधु!",
-  dashboardSubheader: "आपकी खेती के लिए वास्तविक समय की फसल सलाह, मंडी भाव और सरकारी योजनाएं।",
+  dashboardSubheader: "आपकी खेती के लिए दैनिक मंडी भाव, फसल सलाह और सरकारी योजनाएं।",
   kpiMandiAverage: "मंडी मूल्य सूचकांक",
   kpiActiveCrops: "निगरानी की जा रही फसलें",
   kpiSchemesEligible: "पात्र सरकारी योजनाएं",
@@ -42,8 +42,8 @@ export const hi = {
   actionFindSchemes: "सब्सिडी योजनाएं खोजें",
 
   // Mandi Highlights
-  mandiHighlightsTitle: "लाइव एपीएमसी मंडी भाव",
-  mandiSubtitle: "निकटवर्ती मंडियों के ताज़ा भाव और सरकारी एमएसपी (न्यूनतम समर्थन मूल्य) तुलना",
+  mandiHighlightsTitle: "नवीनतम एपीएमसी मंडी भाव",
+  mandiSubtitle: "data.gov.in / AGMARKNET से दैनिक रिपोर्ट किए गए मंडी भाव",
   viewAllMandi: "स्मार्ट मंडी इंजन खोलें",
   crop: "फसल",
   market: "मंडी / बाज़ार",
@@ -63,7 +63,7 @@ export const hi = {
 
   // Smart Mandi Module
   mandiPageTitle: "स्मार्ट मंडी और कृषि लाभ इंजन",
-  mandiPageSubtitle: "फसल कीमतों पर नज़र रखें, मूल्य में उतार-चढ़ाव का अनुमान लगाएं और बेचने से पहले शुद्ध लाभ जानें।",
+  mandiPageSubtitle: "दैनिक रिपोर्ट किए गए फसल भावों की तुलना करें और बेचने से पहले लाभ का अनुमान लगाएं।",
   filterByCrop: "फसल के अनुसार चुनें",
   allCrops: "सभी फसलें",
   wheat: "गेहूं",
@@ -75,7 +75,7 @@ export const hi = {
   chana: "चना",
   soybean: "सोयाबीन",
   searchMandiPlaceholder: "मंडी, राज्य या फसल का नाम खोजें...",
-  refreshRates: "ताज़ा भाव लोड करें",
+  refreshRates: "रिपोर्ट किए गए भाव फिर से लोड करें",
 
   // Profit Calculator
   profitCalcTitle: "कृषि लाभ एवं आय गणक",

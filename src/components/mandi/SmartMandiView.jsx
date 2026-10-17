@@ -5,12 +5,6 @@ import {
   Filter,
   Calculator,
   RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
-  CheckCircle,
-  AlertTriangle,
-  BadgePercent,
-  Coins,
   MapPin,
   Calendar,
   Sparkles
@@ -19,141 +13,12 @@ import { Card, CardHeader, CardBody, CardFooter } from '../shared/Card';
 import { Button } from '../shared/Button';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useNetwork } from '../../context/NetworkContext';
-
-const MOCK_MANDI_DATA = [
-  {
-    id: 1,
-    cropKey: 'wheat',
-    cropEn: 'Wheat (Sharbati)',
-    cropHi: 'गेहूं (शरबती)',
-    mandi: 'Indore APMC',
-    state: 'Madhya Pradesh',
-    modalPrice: 2480,
-    minPrice: 2350,
-    maxPrice: 2600,
-    msp: 2275,
-    arrivalQty: '1,420 Quintals',
-    trend: 'up',
-    trendPct: '+3.4%',
-    advisory: 'Strong mill demand. Good time to offload 50% stock.'
-  },
-  {
-    id: 2,
-    cropKey: 'paddy',
-    cropEn: 'Basmati Paddy (1121)',
-    cropHi: 'बासमती धान (1121)',
-    mandi: 'Karnal APMC',
-    state: 'Haryana',
-    modalPrice: 3650,
-    minPrice: 3400,
-    maxPrice: 3820,
-    msp: 2320,
-    arrivalQty: '2,800 Quintals',
-    trend: 'up',
-    trendPct: '+1.8%',
-    advisory: 'Export inquiries rising. Hold for higher prices.'
-  },
-  {
-    id: 3,
-    cropKey: 'mustard',
-    cropEn: 'Mustard / Rapeseed',
-    cropHi: 'सरसों / राई',
-    mandi: 'Alwar APMC',
-    state: 'Rajasthan',
-    modalPrice: 5450,
-    minPrice: 5200,
-    maxPrice: 5600,
-    msp: 5650,
-    arrivalQty: '950 Quintals',
-    trend: 'down',
-    trendPct: '-1.2%',
-    advisory: 'Trading slightly below MSP. Wait for NAFED procurement.'
-  },
-  {
-    id: 4,
-    cropKey: 'cotton',
-    cropEn: 'Cotton (Medium Staple)',
-    cropHi: 'कपास (मध्यम रेशा)',
-    mandi: 'Rajkot APMC',
-    state: 'Gujarat',
-    modalPrice: 7200,
-    minPrice: 6900,
-    maxPrice: 7450,
-    msp: 7122,
-    arrivalQty: '1,120 Quintals',
-    trend: 'up',
-    trendPct: '+0.9%',
-    advisory: 'Spinning mill demand steady above government MSP.'
-  },
-  {
-    id: 5,
-    cropKey: 'soybean',
-    cropEn: 'Yellow Soybean',
-    cropHi: 'पीली सोयाबीन',
-    mandi: 'Ujjain APMC',
-    state: 'Madhya Pradesh',
-    modalPrice: 4720,
-    minPrice: 4500,
-    maxPrice: 4900,
-    msp: 4892,
-    arrivalQty: '1,650 Quintals',
-    trend: 'up',
-    trendPct: '+2.1%',
-    advisory: 'Edible oil processors active. Price moving toward MSP.'
-  },
-  {
-    id: 6,
-    cropKey: 'chana',
-    cropEn: 'Gram / Chana',
-    cropHi: 'चना / देशी',
-    mandi: 'Bikaner APMC',
-    state: 'Rajasthan',
-    modalPrice: 6100,
-    minPrice: 5800,
-    maxPrice: 6350,
-    msp: 5440,
-    arrivalQty: '830 Quintals',
-    trend: 'up',
-    trendPct: '+4.5%',
-    advisory: 'Substantial festival and pulse demand. Highly profitable.'
-  },
-  {
-    id: 7,
-    cropKey: 'potato',
-    cropEn: 'Potato (Jyoti)',
-    cropHi: 'आलू (ज्योति)',
-    mandi: 'Agra Mandi',
-    state: 'Uttar Pradesh',
-    modalPrice: 1650,
-    minPrice: 1450,
-    maxPrice: 1800,
-    msp: 0,
-    arrivalQty: '4,500 Quintals',
-    trend: 'down',
-    trendPct: '-2.4%',
-    advisory: 'Heavy cold storage arrivals. Consider staggered selling.'
-  },
-  {
-    id: 8,
-    cropKey: 'onion',
-    cropEn: 'Red Onion (Nasik)',
-    cropHi: 'लाल प्याज (नासिक)',
-    mandi: 'Lasalgaon APMC',
-    state: 'Maharashtra',
-    modalPrice: 2850,
-    minPrice: 2600,
-    maxPrice: 3200,
-    msp: 0,
-    arrivalQty: '3,200 Quintals',
-    trend: 'up',
-    trendPct: '+6.1%',
-    advisory: 'Tight supplies from early kharif. Bullish trend.'
-  }
-];
+import { useMandiPrices } from '../../hooks/useMandiPrices';
 
 export const SmartMandiView = () => {
   const { t, language } = useLanguage();
   const { isOffline, refreshSync } = useNetwork();
+  const { records: mandiRecords, loading, error, fetchedAt, refresh } = useMandiPrices();
 
   const [selectedCropFilter, setSelectedCropFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,33 +27,32 @@ export const SmartMandiView = () => {
   // Profit Calculator State
   const [calcAcreage, setCalcAcreage] = useState(5);
   const [calcYield, setCalcYield] = useState(20); // quintals per acre
-  const [calcPrice, setCalcPrice] = useState(2480); // ₹ per quintal
+  const [calcPrice, setCalcPrice] = useState(0); // ₹ per quintal
   const [calcCost, setCalcCost] = useState(18000); // ₹ cost per acre
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
     refreshSync();
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 700);
+    await refresh({ force: true });
+    setIsRefreshing(false);
   };
 
   // Filtered Mandi Items
   const filteredMandiList = useMemo(() => {
-    return MOCK_MANDI_DATA.filter((item) => {
+    return mandiRecords.filter((item) => {
       const matchesCrop =
         selectedCropFilter === 'all' || item.cropKey === selectedCropFilter;
       const query = searchQuery.toLowerCase().trim();
       const matchesQuery =
         !query ||
         item.cropEn.toLowerCase().includes(query) ||
-        item.cropHi.toLowerCase().includes(query) ||
-        item.mandi.toLowerCase().includes(query) ||
+        item.market.toLowerCase().includes(query) ||
+        item.district.toLowerCase().includes(query) ||
         item.state.toLowerCase().includes(query);
 
-      return matchesCrop && matchesQuery;
+      return matchesCrop && matchesQuery && item.modalPrice !== null;
     });
-  }, [selectedCropFilter, searchQuery]);
+  }, [mandiRecords, selectedCropFilter, searchQuery]);
 
   // Farm Profit Calculations
   const profitResults = useMemo(() => {
@@ -225,7 +89,7 @@ export const SmartMandiView = () => {
             {t('mandiPageTitle', 'Smart Mandi & Farm Profit Engine')}
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '0.92rem', color: 'var(--kp-text-muted)' }}>
-            {t('mandiPageSubtitle', 'Track commodity prices, predict price swings, and compute your net farm profitability.')}
+            {t('mandiPageSubtitle', 'Compare the latest daily-reported mandi prices and estimate farm profitability.')}
           </p>
         </div>
 
@@ -315,7 +179,7 @@ export const SmartMandiView = () => {
         <div style={{ gridColumn: 'span 2' }}>
           <div className="kp-flex kp-justify-between kp-items-center" style={{ marginBottom: '12px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--kp-text-muted)', textTransform: 'uppercase' }}>
-              {filteredMandiList.length} Mandi Records Found
+              {loading ? 'Loading reported mandi prices…' : `${filteredMandiList.length} Mandi Records Found`}
             </span>
             {isOffline && (
               <span className="kp-badge kp-badge-warning">
@@ -324,9 +188,21 @@ export const SmartMandiView = () => {
             )}
           </div>
 
+          <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--kp-text-muted)' }}>
+            Source: data.gov.in / AGMARKNET · updated as markets report daily
+            {fetchedAt ? ` · fetched ${new Date(fetchedAt).toLocaleString()}` : ''}
+          </p>
+
+          {error && (
+            <Card style={{ marginBottom: '16px' }}>
+              <CardBody style={{ color: 'var(--kp-warning)' }}>
+                {error} Prices will appear here after the server API key is configured.
+              </CardBody>
+            </Card>
+          )}
+
           <div className="kp-flex kp-flex-col kp-gap-4">
             {filteredMandiList.map((item) => {
-              const isAboveMsp = item.msp > 0 ? item.modalPrice >= item.msp : true;
               return (
                 <Card key={item.id} hoverable>
                   <CardBody style={{ padding: '20px 24px' }}>
@@ -336,16 +212,13 @@ export const SmartMandiView = () => {
                           <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: 'var(--kp-text-primary)' }}>
                             {language === 'hi' ? item.cropHi : item.cropEn}
                           </h3>
-                          <span className={`kp-badge ${item.trend === 'up' ? 'kp-badge-success' : 'kp-badge-danger'}`}>
-                            {item.trend === 'up' ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                            {item.trendPct}
-                          </span>
                         </div>
                         <div className="kp-flex kp-items-center kp-gap-2" style={{ marginTop: '4px', fontSize: '0.82rem', color: 'var(--kp-text-muted)' }}>
                           <MapPin size={14} />
-                          <span>{item.mandi}, {item.state}</span>
+                          <span>{item.market}{item.district ? `, ${item.district}` : ''}, {item.state}</span>
                           <span>•</span>
-                          <span>Arrivals: {item.arrivalQty}</span>
+                          <Calendar size={13} />
+                          <span>Reported: {item.arrivalDate || 'date unavailable'}</span>
                         </div>
                       </div>
 
@@ -356,18 +229,10 @@ export const SmartMandiView = () => {
                             {t('perQuintal', '/ quintal')}
                           </span>
                         </div>
-                        {item.msp > 0 ? (
-                          <div style={{ fontSize: '0.78rem', marginTop: '2px' }}>
-                            <span style={{ color: 'var(--kp-text-muted)' }}>Govt MSP: ₹{item.msp} </span>
-                            <strong style={{ color: isAboveMsp ? 'var(--kp-success)' : 'var(--kp-warning)' }}>
-                              ({isAboveMsp ? '+₹' + (item.modalPrice - item.msp) : '-₹' + (item.msp - item.modalPrice)})
-                            </strong>
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: '0.78rem', color: 'var(--kp-text-muted)' }}>
-                            Range: ₹{item.minPrice} - ₹{item.maxPrice}
-                          </div>
-                        )}
+                        <div style={{ fontSize: '0.78rem', color: 'var(--kp-text-muted)' }}>
+                          Min ₹{item.minPrice?.toLocaleString('en-IN') ?? '—'} · Max ₹{item.maxPrice?.toLocaleString('en-IN') ?? '—'}
+                          {item.grade ? ` · Grade ${item.grade}` : ''}
+                        </div>
                       </div>
                     </div>
 
@@ -386,7 +251,7 @@ export const SmartMandiView = () => {
                     >
                       <div className="kp-flex kp-items-center kp-gap-2">
                         <Sparkles size={14} style={{ color: 'var(--kp-accent-600)', flexShrink: 0 }} />
-                        <span><strong>Mandi Pulse:</strong> {item.advisory}</span>
+                        <span><strong>Reported modal price:</strong> based on the selected mandi record. Check grade and date before selling.</span>
                       </div>
                       <button
                         type="button"

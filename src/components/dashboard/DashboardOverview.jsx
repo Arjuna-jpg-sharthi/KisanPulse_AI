@@ -6,11 +6,7 @@ import {
   Calculator,
   Sun,
   CloudRain,
-  ArrowUpRight,
-  ArrowDownRight,
-  AlertCircle,
   CheckCircle,
-  Clock,
   Sparkles,
   ShieldCheck,
   ChevronRight
@@ -18,63 +14,12 @@ import {
 import { Card, CardHeader, CardBody, CardFooter } from '../shared/Card';
 import { Button } from '../shared/Button';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { useNetwork } from '../../context/NetworkContext';
+import { useMandiPrices } from '../../hooks/useMandiPrices';
 
 export const DashboardOverview = ({ onNavigate }) => {
-  const { t, language } = useLanguage();
-  const { isOffline } = useNetwork();
-
-  // Mock Mandi Highlights Data for Indian Agriculture APMCs
-  const mandiHighlights = [
-    {
-      id: 'wheat',
-      cropEn: 'Wheat (Sharbati)',
-      cropHi: 'गेहूं (शरबती)',
-      mandi: 'Indore Mandi, MP',
-      price: 2480,
-      msp: 2275,
-      unit: '₹ / क्विंटल',
-      change: '+3.4%',
-      trend: 'up',
-      status: 'above'
-    },
-    {
-      id: 'paddy',
-      cropEn: 'Basmati Paddy',
-      cropHi: 'बासमती धान',
-      mandi: 'Karnal Mandi, HR',
-      price: 3650,
-      msp: 2320,
-      unit: '₹ / क्विंटल',
-      change: '+1.8%',
-      trend: 'up',
-      status: 'above'
-    },
-    {
-      id: 'mustard',
-      cropEn: 'Mustard Seed',
-      cropHi: 'सरसों / राई',
-      mandi: 'Alwar Mandi, RJ',
-      price: 5450,
-      msp: 5650,
-      unit: '₹ / क्विंटल',
-      change: '-1.2%',
-      trend: 'down',
-      status: 'below'
-    },
-    {
-      id: 'cotton',
-      cropEn: 'Medium Staple Cotton',
-      cropHi: 'कपास (मध्यम)',
-      mandi: 'Rajkot Mandi, GJ',
-      price: 7200,
-      msp: 7122,
-      unit: '₹ / क्विंटल',
-      change: '+0.9%',
-      trend: 'up',
-      status: 'above'
-    }
-  ];
+  const { t } = useLanguage();
+  const { records: mandiRecords, loading: mandiLoading, error: mandiError } = useMandiPrices();
+  const mandiHighlights = mandiRecords.filter((record) => record.modalPrice !== null).slice(0, 4);
 
   return (
     <div className="kp-dashboard-view">
@@ -141,9 +86,9 @@ export const DashboardOverview = ({ onNavigate }) => {
               <TrendingUp size={16} />
             </div>
           </div>
-          <div className="kp-stat-value">₹2,480<span style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--kp-text-muted)' }}>/q</span></div>
+          <div className="kp-stat-value">{mandiHighlights[0]?.modalPrice != null ? `₹${mandiHighlights[0].modalPrice.toLocaleString('en-IN')}` : '—'}<span style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--kp-text-muted)' }}>/q</span></div>
           <div className="kp-stat-meta">
-            <span className="kp-badge kp-badge-success">{t('kpiTrendUp', '+4.2% this week')}</span>
+            <span className="kp-badge kp-badge-info">{mandiLoading ? 'Loading mandi data…' : mandiError ? 'Mandi data unavailable' : 'Latest reported rate'}</span>
           </div>
         </Card>
 
@@ -204,7 +149,7 @@ export const DashboardOverview = ({ onNavigate }) => {
             >
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: '700' }}>{t('actionCheckMandi', 'Check Mandi Rates')}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--kp-text-muted)' }}>Real-time APMC commodity ticker</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--kp-text-muted)' }}>Latest daily-reported market prices</div>
               </div>
             </Button>
 
@@ -257,8 +202,8 @@ export const DashboardOverview = ({ onNavigate }) => {
           <Card>
             <CardHeader
               icon={<TrendingUp size={20} />}
-              title={t('mandiHighlightsTitle', 'Live APMC Mandi Ticker')}
-              subtitle={t('mandiSubtitle', 'Real-time market rates and MSP comparisons')}
+              title={t('mandiHighlightsTitle', 'Latest APMC Mandi Prices')}
+              subtitle={t('mandiSubtitle', 'Daily-reported market prices from data.gov.in / AGMARKNET')}
               action={
                 <Button
                   variant="ghost"
@@ -279,43 +224,42 @@ export const DashboardOverview = ({ onNavigate }) => {
                       <th style={{ padding: '12px 16px' }}>{t('crop', 'Crop')}</th>
                       <th style={{ padding: '12px 16px' }}>{t('market', 'Market')}</th>
                       <th style={{ padding: '12px 16px' }}>{t('currentPrice', 'Price')}</th>
-                      <th style={{ padding: '12px 16px' }}>{t('mspPrice', 'Govt MSP')}</th>
-                      <th style={{ padding: '12px 16px' }}>{t('status', 'Status')}</th>
+                      <th style={{ padding: '12px 16px' }}>Arrival date</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mandiHighlights.map((row) => (
                       <tr key={row.id} style={{ borderBottom: '1px solid var(--kp-border-subtle)' }}>
                         <td style={{ padding: '14px 16px', fontWeight: '700', color: 'var(--kp-text-primary)' }}>
-                          {language === 'hi' ? row.cropHi : row.cropEn}
+                          {row.cropEn}
                         </td>
                         <td style={{ padding: '14px 16px', color: 'var(--kp-text-secondary)', fontSize: '0.85rem' }}>
-                          {row.mandi}
+                          {[row.market, row.district, row.state].filter(Boolean).join(', ')}
                         </td>
                         <td style={{ padding: '14px 16px', fontWeight: '800', color: 'var(--kp-text-primary)' }}>
-                          ₹{row.price.toLocaleString('en-IN')}
+                          ₹{row.modalPrice.toLocaleString('en-IN')}
                           <span style={{ fontSize: '0.75rem', fontWeight: '400', color: 'var(--kp-text-muted)', marginLeft: '4px' }}>
-                            {row.unit}
+                            / q
                           </span>
                         </td>
                         <td style={{ padding: '14px 16px', color: 'var(--kp-text-muted)', fontSize: '0.85rem' }}>
-                          ₹{row.msp.toLocaleString('en-IN')}
-                        </td>
-                        <td style={{ padding: '14px 16px' }}>
-                          <span className={`kp-badge ${row.status === 'above' ? 'kp-badge-success' : 'kp-badge-warning'}`}>
-                            {row.status === 'above' ? (
-                              <ArrowUpRight size={13} style={{ marginRight: '2px' }} />
-                            ) : (
-                              <ArrowDownRight size={13} style={{ marginRight: '2px' }} />
-                            )}
-                            {row.status === 'above' ? t('aboveMsp', 'Above MSP') : t('belowMsp', 'Below MSP')}
-                          </span>
+                          {row.arrivalDate || '—'}
                         </td>
                       </tr>
                     ))}
+                    {!mandiHighlights.length && (
+                      <tr>
+                        <td colSpan="4" style={{ padding: '20px 16px', color: 'var(--kp-text-muted)' }}>
+                          {mandiLoading ? 'Loading official mandi reports…' : mandiError || 'No mandi records are available yet.'}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
+              <p style={{ margin: '10px 16px', fontSize: '0.76rem', color: 'var(--kp-text-muted)' }}>
+                Government mandi reports update daily and may lag market activity.
+              </p>
             </CardBody>
           </Card>
         </div>
