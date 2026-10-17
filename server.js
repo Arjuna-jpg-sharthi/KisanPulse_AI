@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,6 +42,83 @@ const fetchProviderWithRetry = async (url, options, maxAttempts = 3) => {
   }
 };
 
+const parseCsv = (text) => {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (quoted && char === '"' && text[i + 1] === '"') {
+      cell += '"';
+      i += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      row.push(cell);
+      cell = '';
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && text[i + 1] === '\n') i += 1;
+      row.push(cell);
+      if (row.some((value) => value !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+  row.push(cell);
+  if (row.some((value) => value !== '')) rows.push(row);
+  return rows;
+};
+
+const loadCsvSnapshot = async (filters) => {
+  try {
+    const csv = await readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'mandi-prices.csv'), 'utf8');
+    const [headers = [], ...rows] = parseCsv(csv);
+    const records = rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])))
+      .map((record) => ({
+        state: String(record.state ?? ''),
+        district: String(record.district ?? ''),
+        market: String(record.market ?? ''),
+        commodity: String(record.commodity ?? ''),
+        variety: String(record.variety ?? ''),
+        grade: String(record.grade ?? ''),
+        arrivalDate: String(record.arrival_date ?? record.date ?? ''),
+        minPrice: parsePrice(record.min_price),
+        maxPrice: parsePrice(record.max_price),
+        modalPrice: parsePrice(record.modal_price)
+      }));
+    if (records.length === 0) return null;
+
+    const filtered = records.filter((record) => Object.entries(filters).every(([field, value]) => {
+      const key = field === 'arrival_date' ? 'arrivalDate' : field;
+      return String(record[key] ?? '').toLowerCase() === value.toLowerCase();
+    }));
+    return {
+      source: 'CSV snapshot (AGMARKNET / data.gov.in)',
+      sourceUrl,
+      fetchedAt: null,
+      snapshotAsOf: records.map((record) => record.arrivalDate).sort((a, b) => parseDate(b) - parseDate(a))[0] || '',
+      total: filtered.length,
+      records: filtered,
+      staleSnapshot: true
+    };
+  } catch (error) {
+    if (error?.code !== 'ENOENT') logProviderFailure('csv_snapshot_read_error', { errorCode: String(error?.code || '').slice(0, 80) });
+    return null;
+  }
+};
+
+const useCsvSnapshotOrError = async (res, filters, providerError) => {
+  const snapshot = await loadCsvSnapshot(filters);
+  if (snapshot) {
+    res.set('Cache-Control', 'no-store');
+    return res.json(snapshot);
+  }
+  return res.status(502).json({ error: providerError });
+};
+
 const parsePrice = (value) => {
   const parsed = Number(String(value ?? '').replaceAll(',', '').trim());
   return Number.isFinite(parsed) ? parsed : null;
@@ -57,13 +135,6 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/mandi-prices', async (req, res) => {
   const apiKey = process.env.DATA_GOV_IN_API_KEY;
-  if (!apiKey) {
-    return res.status(503).json({
-      code: 'API_KEY_MISSING',
-      error: 'Mandi API key is not configured on the server.'
-    });
-  }
-
   const filters = {};
   for (const field of allowedFilters) {
     const value = String(req.query[field] ?? '').trim();
@@ -71,6 +142,18 @@ app.get('/api/mandi-prices', async (req, res) => {
       if (value.length > 100) return res.status(400).json({ error: `Invalid ${field} filter.` });
       filters[field] = value;
     }
+  }
+
+  if (!apiKey) {
+    const snapshot = await loadCsvSnapshot(filters);
+    if (snapshot) {
+      res.set('Cache-Control', 'no-store');
+      return res.json(snapshot);
+    }
+    return res.status(503).json({
+      code: 'API_KEY_MISSING',
+      error: 'Mandi API key is not configured on the server.'
+    });
   }
 
   const requestedLimit = Number.parseInt(String(req.query.limit ?? '1000'), 10);
@@ -103,7 +186,7 @@ app.get('/api/mandi-prices', async (req, res) => {
         httpStatus: upstream.status,
         providerMessage: providerMessage(diagnostic, apiKey)
       });
-      return res.status(502).json({ error: 'The mandi data provider returned an error. Please try again later.' });
+      return useCsvSnapshotOrError(res, filters, 'The mandi data provider returned an error. Please try again later.');
     }
 
     const body = await upstream.json();
@@ -112,7 +195,7 @@ app.get('/api/mandi-prices', async (req, res) => {
         httpStatus: upstream.status,
         providerMessage: providerMessage(body, apiKey)
       });
-      return res.status(502).json({ error: 'The mandi data provider could not return records.' });
+      return useCsvSnapshotOrError(res, filters, 'The mandi data provider could not return records.');
     }
 
     const records = (Array.isArray(body.records) ? body.records : [])
@@ -148,6 +231,11 @@ app.get('/api/mandi-prices', async (req, res) => {
       errorCode: String(error?.cause?.code || '').slice(0, 80),
       attempts: Number(error?.retryAttempts) || 1
     });
+    const snapshot = await loadCsvSnapshot(filters);
+    if (snapshot) {
+      res.set('Cache-Control', 'no-store');
+      return res.json(snapshot);
+    }
     return res.status(502).json({
       error: timedOut
         ? 'The mandi data provider did not respond in time. Please try again later.'

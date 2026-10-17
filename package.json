@@ -8,6 +8,7 @@
     "dev:api": "node server.js",
     "build": "vite build",
     "preview": "vite preview",
+    "export:mandi": "node scripts/export-mandi-csv.js",
     "start": "node server.js"
   },
   "dependencies": {

@@ -40,6 +40,9 @@ export const useMandiPrices = (limit = 1000) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [fetchedAt, setFetchedAt] = useState('');
+  const [source, setSource] = useState('data.gov.in / AGMARKNET');
+  const [snapshotAsOf, setSnapshotAsOf] = useState('');
+  const [staleSnapshot, setStaleSnapshot] = useState(false);
 
   const refresh = useCallback(async ({ force = false } = {}) => {
     setLoading(true);
@@ -57,10 +60,15 @@ export const useMandiPrices = (limit = 1000) => {
       }
       setRecords((payload.records || []).map(normalizeRecord));
       setFetchedAt(payload.fetchedAt || '');
+      setSource(payload.source || 'data.gov.in / AGMARKNET');
+      setSnapshotAsOf(payload.snapshotAsOf || '');
+      setStaleSnapshot(Boolean(payload.staleSnapshot));
     } catch (requestError) {
       setRecords([]);
       setError(requestError.message || 'Mandi prices are unavailable.');
       setFetchedAt('');
+      setSnapshotAsOf('');
+      setStaleSnapshot(false);
     } finally {
       setLoading(false);
     }
@@ -70,5 +78,5 @@ export const useMandiPrices = (limit = 1000) => {
     refresh();
   }, [refresh]);
 
-  return { records, loading, error, fetchedAt, refresh };
+  return { records, loading, error, fetchedAt, source, snapshotAsOf, staleSnapshot, refresh };
 };

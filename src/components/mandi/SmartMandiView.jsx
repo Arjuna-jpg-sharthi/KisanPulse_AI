@@ -18,7 +18,7 @@ import { useMandiPrices } from '../../hooks/useMandiPrices';
 export const SmartMandiView = () => {
   const { t, language } = useLanguage();
   const { isOffline, refreshSync } = useNetwork();
-  const { records: mandiRecords, loading, error, fetchedAt, refresh } = useMandiPrices();
+  const { records: mandiRecords, loading, error, fetchedAt, source, snapshotAsOf, staleSnapshot, refresh } = useMandiPrices();
 
   const [selectedCropFilter, setSelectedCropFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,14 +189,23 @@ export const SmartMandiView = () => {
           </div>
 
           <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--kp-text-muted)' }}>
-            Source: data.gov.in / AGMARKNET · updated as markets report daily
+            Source: {source} · prices are daily reports
             {fetchedAt ? ` · fetched ${new Date(fetchedAt).toLocaleString()}` : ''}
+            {snapshotAsOf ? ` · snapshot through ${snapshotAsOf}` : ''}
           </p>
+
+          {staleSnapshot && (
+            <Card style={{ marginBottom: '16px' }}>
+              <CardBody style={{ color: 'var(--kp-warning)' }}>
+                Showing a CSV snapshot because the live data provider is unavailable. Check the reported date before relying on these prices.
+              </CardBody>
+            </Card>
+          )}
 
           {error && (
             <Card style={{ marginBottom: '16px' }}>
               <CardBody style={{ color: 'var(--kp-warning)' }}>
-                {error} Prices will appear here after the server API key is configured.
+                {error}
               </CardBody>
             </Card>
           )}

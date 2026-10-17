@@ -18,7 +18,7 @@ import { useMandiPrices } from '../../hooks/useMandiPrices';
 
 export const DashboardOverview = ({ onNavigate }) => {
   const { t } = useLanguage();
-  const { records: mandiRecords, loading: mandiLoading, error: mandiError } = useMandiPrices();
+  const { records: mandiRecords, loading: mandiLoading, error: mandiError, staleSnapshot } = useMandiPrices();
   const mandiHighlights = mandiRecords.filter((record) => record.modalPrice !== null).slice(0, 4);
 
   return (
@@ -88,7 +88,7 @@ export const DashboardOverview = ({ onNavigate }) => {
           </div>
           <div className="kp-stat-value">{mandiHighlights[0]?.modalPrice != null ? `₹${mandiHighlights[0].modalPrice.toLocaleString('en-IN')}` : '—'}<span style={{ fontSize: '1rem', fontWeight: '500', color: 'var(--kp-text-muted)' }}>/q</span></div>
           <div className="kp-stat-meta">
-            <span className="kp-badge kp-badge-info">{mandiLoading ? 'Loading mandi data…' : mandiError ? 'Mandi data unavailable' : 'Latest reported rate'}</span>
+            <span className="kp-badge kp-badge-info">{mandiLoading ? 'Loading mandi data…' : mandiError ? 'Mandi data unavailable' : staleSnapshot ? 'CSV snapshot rate' : 'Latest reported rate'}</span>
           </div>
         </Card>
 
