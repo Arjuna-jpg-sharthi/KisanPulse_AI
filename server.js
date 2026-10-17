@@ -11,6 +11,19 @@ const cacheTtlMs = 15 * 60 * 1000;
 const responseCache = new Map();
 const allowedFilters = ['state', 'district', 'market', 'commodity', 'arrival_date'];
 
+const logProviderFailure = (kind, details = {}) => {
+  // Never log the request URL or API key. Keep only provider diagnostics that
+  // help distinguish a rejected key from rate limits and upstream failures.
+  console.error('[mandi-provider]', JSON.stringify({ kind, ...details }));
+};
+
+const providerMessage = (body, apiKey) => {
+  const candidate = [body?.message, body?.error, body?.error_description, body?.status]
+    .find((value) => typeof value === 'string' && value.trim());
+  if (!candidate) return undefined;
+  return candidate.replaceAll(apiKey, '[redacted]').slice(0, 240);
+};
+
 const parsePrice = (value) => {
   const parsed = Number(String(value ?? '').replaceAll(',', '').trim());
   return Number.isFinite(parsed) ? parsed : null;
@@ -63,11 +76,25 @@ app.get('/api/mandi-prices', async (req, res) => {
   try {
     const upstream = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!upstream.ok) {
+      let diagnostic;
+      try {
+        diagnostic = await upstream.json();
+      } catch {
+        // Some upstream failures return HTML or an empty body.
+      }
+      logProviderFailure('http_error', {
+        httpStatus: upstream.status,
+        providerMessage: providerMessage(diagnostic, apiKey)
+      });
       return res.status(502).json({ error: 'The mandi data provider returned an error. Please try again later.' });
     }
 
     const body = await upstream.json();
     if (body.status && body.status !== 'ok') {
+      logProviderFailure('provider_rejected_request', {
+        httpStatus: upstream.status,
+        providerMessage: providerMessage(body, apiKey)
+      });
       return res.status(502).json({ error: 'The mandi data provider could not return records.' });
     }
 
@@ -99,6 +126,10 @@ app.get('/api/mandi-prices', async (req, res) => {
     return res.json(payload);
   } catch (error) {
     const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';
+    logProviderFailure(timedOut ? 'timeout' : 'request_or_parse_error', {
+      errorName: String(error?.name || 'Error').slice(0, 80),
+      errorCode: String(error?.cause?.code || '').slice(0, 80)
+    });
     return res.status(502).json({
       error: timedOut
         ? 'The mandi data provider did not respond in time. Please try again later.'
