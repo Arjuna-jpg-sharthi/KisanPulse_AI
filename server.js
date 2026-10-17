@@ -24,6 +24,23 @@ const providerMessage = (body, apiKey) => {
   return candidate.replaceAll(apiKey, '[redacted]').slice(0, 240);
 };
 
+const retryableNetworkErrors = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN']);
+
+const fetchProviderWithRetry = async (url, options, maxAttempts = 3) => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetch(url, options);
+    } catch (error) {
+      const code = error?.cause?.code;
+      if (attempt === maxAttempts || !retryableNetworkErrors.has(code)) {
+        error.retryAttempts = attempt;
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400 * (2 ** (attempt - 1))));
+    }
+  }
+};
+
 const parsePrice = (value) => {
   const parsed = Number(String(value ?? '').replaceAll(',', '').trim());
   return Number.isFinite(parsed) ? parsed : null;
@@ -74,7 +91,7 @@ app.get('/api/mandi-prices', async (req, res) => {
   }
 
   try {
-    const upstream = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const upstream = await fetchProviderWithRetry(url, { signal: AbortSignal.timeout(15000) });
     if (!upstream.ok) {
       let diagnostic;
       try {
@@ -128,7 +145,8 @@ app.get('/api/mandi-prices', async (req, res) => {
     const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';
     logProviderFailure(timedOut ? 'timeout' : 'request_or_parse_error', {
       errorName: String(error?.name || 'Error').slice(0, 80),
-      errorCode: String(error?.cause?.code || '').slice(0, 80)
+      errorCode: String(error?.cause?.code || '').slice(0, 80),
+      attempts: Number(error?.retryAttempts) || 1
     });
     return res.status(502).json({
       error: timedOut
