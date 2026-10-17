@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <linearGradient id="sunGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle soft glow -->
+  <circle cx="50" cy="50" r="46" fill="#f0fdf4" stroke="#86efac" stroke-width="2" />
+  
+  <!-- Pulse tech ring -->
+  <path d="M 22 55 Q 32 55, 38 42 T 48 30 T 56 65 T 66 50 L 78 50" stroke="#16a34a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Sprouting leaf -->
+  <path d="M 50 78 C 50 50, 72 32, 76 22 C 60 26, 42 42, 40 68 Z" fill="url(#leafGrad)" />
+  <path d="M 40 68 C 36 52, 25 44, 18 42 C 20 54, 30 70, 48 78 Z" fill="#4ade80" opacity="0.85" />
+  
+  <!-- Golden harvest sun dot -->
+  <circle cx="70" cy="24" r="7" fill="url(#sunGrad)" />
+</svg>

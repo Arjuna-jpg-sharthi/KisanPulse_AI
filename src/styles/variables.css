@@ -1,0 +1,117 @@
+:root {
+  /* Primary Agriculture Palette */
+  --kp-primary-50: #f0fdf4;
+  --kp-primary-100: #dcfce7;
+  --kp-primary-200: #bbf7d0;
+  --kp-primary-300: #86efac;
+  --kp-primary-400: #4ade80;
+  --kp-primary-500: #22c55e;
+  --kp-primary-600: #16a34a;
+  --kp-primary-700: #15803d;
+  --kp-primary-800: #166534;
+  --kp-primary-900: #14532d;
+  --kp-primary: var(--kp-primary-700);
+  --kp-primary-hover: var(--kp-primary-800);
+  --kp-primary-light: var(--kp-primary-50);
+  --kp-primary-border: var(--kp-primary-200);
+
+  /* Golden Harvest Accent Palette */
+  --kp-accent-50: #fffbeb;
+  --kp-accent-100: #fef3c7;
+  --kp-accent-200: #fde68a;
+  --kp-accent-300: #fcd34d;
+  --kp-accent-400: #fbbf24;
+  --kp-accent-500: #f59e0b;
+  --kp-accent-600: #d97706;
+  --kp-accent-700: #b45309;
+  --kp-accent: var(--kp-accent-600);
+  --kp-accent-light: var(--kp-accent-100);
+  --kp-accent-hover: var(--kp-accent-700);
+
+  /* Neutral Slate Palette */
+  --kp-slate-50: #f8fafc;
+  --kp-slate-100: #f1f5f9;
+  --kp-slate-200: #e2e8f0;
+  --kp-slate-300: #cbd5e1;
+  --kp-slate-400: #94a3b8;
+  --kp-slate-500: #64748b;
+  --kp-slate-600: #475569;
+  --kp-slate-700: #334155;
+  --kp-slate-800: #1e293b;
+  --kp-slate-900: #0f172a;
+
+  /* Semantic UI Colors */
+  --kp-bg-main: #f8faf9;
+  --kp-bg-card: #ffffff;
+  --kp-bg-card-hover: #fafcfb;
+  --kp-bg-subtle: #f1f5f3;
+  --kp-bg-sidebar: #ffffff;
+  --kp-bg-header: rgba(255, 255, 255, 0.92);
+
+  --kp-text-primary: #0f172a;
+  --kp-text-secondary: #334155;
+  --kp-text-muted: #64748b;
+  --kp-text-inverse: #ffffff;
+
+  --kp-border: #e2e8f0;
+  --kp-border-subtle: #edf2f0;
+  --kp-border-focus: var(--kp-primary-600);
+
+  /* Feedback Colors */
+  --kp-success: #16a34a;
+  --kp-success-bg: #f0fdf4;
+  --kp-success-border: #bbf7d0;
+
+  --kp-warning: #d97706;
+  --kp-warning-bg: #fffbeb;
+  --kp-warning-border: #fde68a;
+
+  --kp-danger: #dc2626;
+  --kp-danger-bg: #fef2f2;
+  --kp-danger-border: #fecaca;
+
+  --kp-info: #0284c7;
+  --kp-info-bg: #f0f9ff;
+  --kp-info-border: #bae6fd;
+
+  /* Typography */
+  --kp-font-sans: 'Plus Jakarta Sans', 'Yantramanav', -apple-system, BlinkMacSystemFont, sans-serif;
+  --kp-font-hindi: 'Yantramanav', 'Plus Jakarta Sans', sans-serif;
+
+  /* Spacing */
+  --kp-space-1: 0.25rem;
+  --kp-space-2: 0.5rem;
+  --kp-space-3: 0.75rem;
+  --kp-space-4: 1rem;
+  --kp-space-5: 1.25rem;
+  --kp-space-6: 1.5rem;
+  --kp-space-8: 2rem;
+  --kp-space-10: 2.5rem;
+  --kp-space-12: 3rem;
+
+  /* Borders & Radius */
+  --kp-radius-sm: 6px;
+  --kp-radius-md: 10px;
+  --kp-radius-lg: 14px;
+  --kp-radius-xl: 18px;
+  --kp-radius-2xl: 24px;
+  --kp-radius-full: 9999px;
+
+  /* Shadows */
+  --kp-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --kp-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --kp-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --kp-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --kp-shadow-card-hover: 0 8px 16px -2px rgba(22, 101, 52, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+
+  /* Layout dimensions */
+  --kp-header-height: 64px;
+  --kp-sidebar-width: 260px;
+  --kp-mobile-nav-height: 64px;
+  --kp-content-max-width: 1400px;
+
+  /* Transitions */
+  --kp-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --kp-transition-base: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  --kp-transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}

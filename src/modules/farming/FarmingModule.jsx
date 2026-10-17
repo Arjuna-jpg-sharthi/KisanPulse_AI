@@ -17,7 +17,15 @@ import {
   setLocalItem
 } from './farmingUtils';
 
-export default function FarmingModule({ isOnline = true }) {
+export default function FarmingModule({
+  language = 'en',
+  isOffline = false,
+  isOnline = true,
+  t,
+  navigate
+}) {
+  const offlineActive = isOffline || !isOnline;
+  const isHindi = language === 'hi';
   const [activeTab, setActiveTab] = useState('mandi'); // 'mandi' | 'health' | 'irrigation' | 'weather'
 
   // ==========================================
@@ -323,31 +331,43 @@ export default function FarmingModule({ isOnline = true }) {
     <div className="farming-container">
       {/* Sub-Navigation Tabs */}
       <div className="farming-nav-bar">
-        <div className="farming-sub-tabs">
-          <button
-            className={`farming-sub-tab-btn ${activeTab === 'mandi' ? 'farming-active' : ''}`}
-            onClick={() => setActiveTab('mandi')}
-          >
-            <span>⚖️</span> Mandi Profit Engine
-          </button>
-          <button
-            className={`farming-sub-tab-btn ${activeTab === 'health' ? 'farming-active' : ''}`}
-            onClick={() => setActiveTab('health')}
-          >
-            <span>🩺</span> Crop Health Log
-          </button>
-          <button
-            className={`farming-sub-tab-btn ${activeTab === 'irrigation' ? 'farming-active' : ''}`}
-            onClick={() => setActiveTab('irrigation')}
-          >
-            <span>💧</span> Irrigation Guide
-          </button>
-          <button
-            className={`farming-sub-tab-btn ${activeTab === 'weather' ? 'farming-active' : ''}`}
-            onClick={() => setActiveTab('weather')}
-          >
-            <span>⛅</span> Weather & Spray Advisory
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {navigate && (
+            <button
+              className="farming-btn farming-btn-outline farming-btn-sm"
+              onClick={() => navigate('dashboard')}
+              title={isHindi ? 'डैशबोर्ड पर वापस जाएं' : 'Return to Dashboard'}
+            >
+              ← {isHindi ? 'डैशबोर्ड' : 'Dashboard'}
+            </button>
+          )}
+
+          <div className="farming-sub-tabs">
+            <button
+              className={`farming-sub-tab-btn ${activeTab === 'mandi' ? 'farming-active' : ''}`}
+              onClick={() => setActiveTab('mandi')}
+            >
+              <span>⚖️</span> {isHindi ? 'मंडी लाभ इंजन' : 'Mandi Profit Engine'}
+            </button>
+            <button
+              className={`farming-sub-tab-btn ${activeTab === 'health' ? 'farming-active' : ''}`}
+              onClick={() => setActiveTab('health')}
+            >
+              <span>🩺</span> {isHindi ? 'फसल स्वास्थ्य' : 'Crop Health Log'}
+            </button>
+            <button
+              className={`farming-sub-tab-btn ${activeTab === 'irrigation' ? 'farming-active' : ''}`}
+              onClick={() => setActiveTab('irrigation')}
+            >
+              <span>💧</span> {isHindi ? 'सिंचाई गाइड' : 'Irrigation Guide'}
+            </button>
+            <button
+              className={`farming-sub-tab-btn ${activeTab === 'weather' ? 'farming-active' : ''}`}
+              onClick={() => setActiveTab('weather')}
+            >
+              <span>⛅</span> {isHindi ? 'मौसम एवं स्प्रे' : 'Weather & Spray'}
+            </button>
+          </div>
         </div>
 
         <div>
@@ -356,17 +376,20 @@ export default function FarmingModule({ isOnline = true }) {
             onClick={() => setShowDraftsListModal(true)}
             title="View saved buyer enquiry drafts"
           >
-            📋 Saved Drafts ({savedDrafts.length})
+            📋 {isHindi ? 'सहेजे गए ड्राफ्ट' : 'Saved Drafts'} ({savedDrafts.length})
           </button>
         </div>
       </div>
 
       {/* Offline Alert Banner */}
-      {!isOnline && (
+      {offlineActive && (
         <div className="farming-offline-alert">
           <span>📡</span>
           <div>
-            <strong>Offline Operation Mode:</strong> Calculations, irrigation rules, and crop logs are running locally on your device. Previously loaded market benchmarks and weather data are served from local cache.
+            <strong>{isHindi ? 'ऑफलाइन मोड सक्रिय:' : 'Offline Operation Mode:'}</strong>{' '}
+            {isHindi
+              ? 'गणनाएं, सिंचाई नियम और फसल स्वास्थ्य लॉग आपके उपकरण पर स्थानीय रूप से चल रहे हैं।'
+              : 'Calculations, irrigation rules, and crop logs are running locally on your device. Previously loaded market benchmarks and weather data are served from local cache.'}
           </div>
         </div>
       )}
