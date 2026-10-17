@@ -16,8 +16,8 @@ The app's `/api/mandi-prices` endpoint returns the latest available government r
 
 If the Render service cannot reach the live provider, the server can return records from `data/mandi-prices.csv`. The file is a daily snapshot and must be refreshed; it is not live data. To generate it from a computer that can reach data.gov.in:
 
-1. Put `DATA_GOV_IN_API_KEY=your-key` in a local `.env` file in the project root. Keep `.env` private; it is ignored by Git.
-2. Run `npm run export:mandi`. This writes the source records to `data/mandi-prices.csv` without printing the key.
+1. Copy `.env.example` to `.env` and enter the key you already have in Render in the local `.env` file. Keep `.env` private; it is ignored by Git.
+2. Run `npm install`, then `npm run export:mandi`. This writes the source records to `data/mandi-prices.csv` without printing the key.
 3. Commit and push the updated CSV. Render will redeploy and use the snapshot when the live request fails.
 
 The official catalog currently describes daily wholesale min, max, and modal prices, but its downloadable ZIP may be unavailable. Always show the record date and verify prices with AGMARKNET before transactions.
