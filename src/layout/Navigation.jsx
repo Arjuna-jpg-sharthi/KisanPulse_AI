@@ -8,9 +8,14 @@ import {
   Settings,
   HelpCircle,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  CloudSun,
+  Calculator,
+  UserRound,
+  Clock3
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 export const NAVIGATION_ITEMS = [
   {
@@ -41,6 +46,9 @@ export const NAVIGATION_ITEMS = [
     icon: Sprout,
     badge: 'AI'
   },
+  { id: 'advisors', labelKey: 'navAdvisors', defaultLabel: 'Farm Advisors', icon: Clock3, badge: null },
+  { id: 'weather', labelKey: 'navWeather', defaultLabel: 'Weather Forecast', icon: CloudSun, badge: null },
+  { id: 'land', labelKey: 'navLand', defaultLabel: 'Land Calculator', icon: Calculator, badge: null },
   {
     id: 'schemes',
     labelKey: 'navSchemes',
@@ -48,6 +56,8 @@ export const NAVIGATION_ITEMS = [
     icon: FileCheck2,
     badge: 'Govt'
   },
+  { id: 'account', labelKey: 'navAccount', defaultLabel: 'Account', icon: UserRound, badge: null },
+  { id: 'admin', labelKey: 'navAdmin', defaultLabel: 'Admin Operations', icon: ShieldCheck, badge: 'Admin' },
   {
     id: 'settings',
     labelKey: 'navSettings',
@@ -64,6 +74,10 @@ export const Navigation = ({
   onCloseMobile
 }) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const items = user?.role === 'buyer'
+    ? NAVIGATION_ITEMS.filter((item) => ['dashboard', 'mandi', 'marketplace', 'account', 'settings'].includes(item.id))
+    : NAVIGATION_ITEMS.filter((item) => item.id !== 'admin' || user?.role === 'admin');
 
   const handleItemClick = (id) => {
     onNavigate(id);
@@ -103,7 +117,7 @@ export const Navigation = ({
         {/* Navigation Items */}
         <nav className="kp-sidebar-nav" aria-label="Main Navigation">
           <div className="kp-nav-section-title">Navigation / नेविगेशन</div>
-          {NAVIGATION_ITEMS.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
             return (

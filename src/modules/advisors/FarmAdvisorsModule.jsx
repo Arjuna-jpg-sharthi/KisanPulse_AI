@@ -135,7 +135,7 @@ export default function FarmAdvisorsModule({
               Candidate catch crops are evaluated against 4 deterministic agronomic criteria:
             </p>
             <ol style={{ fontSize: '13.5px', lineHeight: 1.6, color: '#475569', paddingLeft: '20px' }}>
-              <li><strong>Duration Feasibility:</strong> $\text{Available Days} \ge \text{Crop Minimum Maturity Days}$. Excludes any crop that cannot mature before the next primary sowing season.</li>
+              <li><strong>Duration Feasibility:</strong> Available days must be at least the crop’s minimum maturity period. Excludes crops that cannot mature before the next primary sowing season.</li>
               <li><strong>Water Accessibility:</strong> Ensures crop water requirement does not exceed farmer's actual source (e.g. Cucurbits strictly excluded under rainfed conditions).</li>
               <li><strong>Soil Texture Matching:</strong> Matches root morphology (e.g. Sandy loam for taproot legumes vs heavier clay loam for moisture retention).</li>
               <li><strong>Soil Health / Legume Bonus:</strong> Crops providing biological nitrogen fixation (e.g. Summer Moong adding 30-35 kg N/ha, Dhaincha adding 60-80 kg N/ha) receive priority scoring.</li>

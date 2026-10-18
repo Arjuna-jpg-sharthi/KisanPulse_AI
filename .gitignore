@@ -5,3 +5,7 @@ dist-ssr
 .DS_Store
 .env
 .env.local
+server/data/*.sqlite-shm
+server/data/*.sqlite-wal
+server/uploads/*
+
