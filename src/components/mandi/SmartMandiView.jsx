@@ -15,6 +15,8 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useNetwork } from '../../context/NetworkContext';
 import { useMandiPrices } from '../../hooks/useMandiPrices';
 
+const MANDI_PAGE_SIZE = 50;
+
 export const SmartMandiView = () => {
   const { t, language } = useLanguage();
   const { isOffline, refreshSync } = useNetwork();
@@ -22,6 +24,7 @@ export const SmartMandiView = () => {
 
   const [selectedCropFilter, setSelectedCropFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleMandiCount, setVisibleMandiCount] = useState(MANDI_PAGE_SIZE);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Profit Calculator State
@@ -39,10 +42,10 @@ export const SmartMandiView = () => {
 
   // Filtered Mandi Items
   const filteredMandiList = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
     return mandiRecords.filter((item) => {
       const matchesCrop =
         selectedCropFilter === 'all' || item.cropKey === selectedCropFilter;
-      const query = searchQuery.toLowerCase().trim();
       const matchesQuery =
         !query ||
         item.cropEn.toLowerCase().includes(query) ||
@@ -53,6 +56,11 @@ export const SmartMandiView = () => {
       return matchesCrop && matchesQuery && item.modalPrice !== null;
     });
   }, [mandiRecords, selectedCropFilter, searchQuery]);
+
+  const visibleMandiList = useMemo(
+    () => filteredMandiList.slice(0, visibleMandiCount),
+    [filteredMandiList, visibleMandiCount]
+  );
 
   // Farm Profit Calculations
   const profitResults = useMemo(() => {
@@ -127,7 +135,10 @@ export const SmartMandiView = () => {
                 type="text"
                 placeholder={t('searchMandiPlaceholder', 'Search by Mandi, State, or Crop...')}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setVisibleMandiCount(MANDI_PAGE_SIZE);
+                }}
                 style={{
                   width: '100%',
                   height: '42px',
@@ -146,7 +157,10 @@ export const SmartMandiView = () => {
               <Filter size={18} style={{ color: 'var(--kp-text-muted)', flexShrink: 0 }} />
               <select
                 value={selectedCropFilter}
-                onChange={(e) => setSelectedCropFilter(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCropFilter(e.target.value);
+                  setVisibleMandiCount(MANDI_PAGE_SIZE);
+                }}
                 style={{
                   width: '100%',
                   height: '42px',
@@ -211,7 +225,7 @@ export const SmartMandiView = () => {
           )}
 
           <div className="kp-flex kp-flex-col kp-gap-4">
-            {filteredMandiList.map((item) => {
+            {visibleMandiList.map((item) => {
               return (
                 <Card key={item.id} hoverable>
                   <CardBody style={{ padding: '20px 24px' }}>
@@ -284,6 +298,14 @@ export const SmartMandiView = () => {
                 </Card>
               );
             })}
+            {visibleMandiCount < filteredMandiList.length && (
+              <Button
+                variant="outline"
+                onClick={() => setVisibleMandiCount((count) => count + MANDI_PAGE_SIZE)}
+              >
+                Show more ({filteredMandiList.length - visibleMandiCount} remaining)
+              </Button>
+            )}
           </div>
         </div>
 
