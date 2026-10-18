@@ -9,3 +9,7 @@ server/data/*.sqlite-shm
 server/data/*.sqlite-wal
 server/uploads/*
 
+<<<<<<< HEAD
+=======
+server/data/*.sqlite
+>>>>>>> ef259ed12f29c4db7831635a485bf57e767a51ec
