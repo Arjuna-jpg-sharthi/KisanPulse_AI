@@ -18,7 +18,7 @@ If the Render service cannot reach the live provider, the server can return reco
 
 1. Copy `.env.example` to `.env` and enter the key you already have in Render in the local `.env` file. Keep `.env` private; it is ignored by Git.
 2. Run `npm install`, then `npm run export:mandi`. This writes up to the 20,000 newest source records to `data/mandi-prices.csv` without printing the key.
-3. Commit and push the updated CSV. Render will redeploy and use the snapshot when the live request fails.
+3. Commit and push the updated CSV. Render will redeploy and use the snapshot when the live request detects failure.
 
 The source provides daily wholesale min, max, and modal prices. Always show the record date and verify prices with AGMARKNET before transactions.
 
