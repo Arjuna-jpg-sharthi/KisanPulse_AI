@@ -10,7 +10,7 @@
  *  6. Enhanced search + category filter
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   FileCheck2, Search, ExternalLink, CheckCircle2,
   PlayCircle, Bot, ClipboardList, X, Rss,
@@ -18,10 +18,14 @@ import {
   Sparkles, BadgeCheck
 } from 'lucide-react';
 
-import { ALL_SCHEMES, SCHEME_CATEGORIES } from './schemesData';
+import { STATIC_SCHEMES, SCHEME_CATEGORIES } from './schemesData';
 import SchemeAIChat from './SchemeAIChat';
 import SchemeRegistration from './SchemeRegistration';
 import SchemeMatchFinder from '../scheme-match-finder/SchemeMatchFinder';
+import SchemeAlerts from './SchemeAlerts';
+import SchemeAdminPortal from './SchemeAdminPortal';
+import MySchemeRequests from './MySchemeRequests';
+import { useAuth } from '../../context/AuthContext';
 
 // ─── Tiny Modal wrapper ───────────────────────────────────────────────────────
 function Modal({ open, onClose, title, children, wide = false }) {
@@ -55,8 +59,14 @@ function Modal({ open, onClose, title, children, wide = false }) {
 function SchemeVideoSection({ scheme, language }) {
   const isHi = language === 'hi';
   const [playing, setPlaying] = useState(false);
+  const [uploadedVideos, setUploadedVideos] = useState([]);
+  useEffect(() => {
+    let active=true;
+    fetch(`/api/schemes/${encodeURIComponent(scheme.id)}/videos`).then(r=>r.ok?r.json():{videos:[]}).then(data=>{if(active)setUploadedVideos(data.videos||[]);}).catch(()=>{});
+    return ()=>{active=false;};
+  },[scheme.id]);
 
-  if (!scheme.videoUrl) {
+  if (!scheme.videoUrl && !uploadedVideos.length) {
     return (
       <div style={{ background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 10, padding: '28px', textAlign: 'center', color: '#64748b' }}>
         <Video size={32} style={{ marginBottom: 10, color: '#94a3b8' }} />
@@ -72,6 +82,11 @@ function SchemeVideoSection({ scheme, language }) {
 
   return (
     <div>
+      {uploadedVideos.map(video=><div key={video.id} style={{marginBottom:18}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,fontWeight:700,color:'#0f172a'}}><PlayCircle size={17} color="#15803d"/>{isHi?(video.titleHi||video.titleEn):video.titleEn}</div>
+        <video controls preload="metadata" src={video.url} style={{width:'100%',maxHeight:460,background:'#0f172a',borderRadius:12}}>{isHi?'आपका ब्राउज़र वीडियो नहीं चला सकता।':'Your browser cannot play this video.'}</video>
+      </div>)}
+      {scheme.videoUrl && <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <PlayCircle size={18} color="#15803d" />
         <span style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>
@@ -127,6 +142,7 @@ function SchemeVideoSection({ scheme, language }) {
           ? '* वीडियो YouTube पर होस्ट है। इंटरनेट कनेक्शन आवश्यक है।'
           : '* Video hosted on YouTube. Internet connection required.'}
       </p>
+      </>}
     </div>
   );
 }
@@ -136,7 +152,7 @@ const DETAIL_TABS = [
   { id: 'overview', iconEl: <ClipboardList size={16} />, labelEn: 'Overview & Documents', labelHi: 'विवरण और दस्तावेज' },
   { id: 'video', iconEl: <Video size={16} />, labelEn: 'Video Walkthrough', labelHi: 'वीडियो व्याख्यान' },
   { id: 'ai', iconEl: <Bot size={16} />, labelEn: 'Ask AI Advisor', labelHi: 'AI से पूछें' },
-  { id: 'register', iconEl: <BadgeCheck size={16} />, labelEn: 'Register Me (₹ Service)', labelHi: 'मेरे लिए पंजीकरण' },
+  { id: 'register', iconEl: <BadgeCheck size={16} />, labelEn: 'Request Registration Help', labelHi: 'पंजीकरण सहायता माँगें' },
 ];
 
 function SchemeDetailModal({ scheme, language, onClose }) {
@@ -190,11 +206,6 @@ function SchemeDetailModal({ scheme, language, onClose }) {
             >
               {tab.iconEl}
               {isHi ? tab.labelHi : tab.labelEn}
-              {tab.id === 'register' && (
-                <span style={{ fontSize: 11, background: '#fef9c3', color: '#854d0e', borderRadius: 5, padding: '1px 5px', marginLeft: 2, fontWeight: 700 }}>
-                  ₹{scheme.serviceFee || 199}
-                </span>
-              )}
             </button>
           ))}
         </div>
@@ -245,6 +256,16 @@ function SchemeDetailModal({ scheme, language, onClose }) {
                 {isHi ? 'आधिकारिक पोर्टल खोलें' : 'Visit Official Portal'}
                 <ExternalLink size={14} />
               </a>
+              {scheme.sourceUrl && (
+                <div style={{ marginTop: 12, fontSize: 12, color: '#64748b' }}>
+                  {scheme.launchDate && <span>{isHi ? 'शुरुआत/घोषणा: ' : 'Launch/announcement: '}{scheme.launchDate} · </span>}
+                  {isHi ? 'स्रोत: ' : 'Source: '}
+                  <a href={scheme.sourceUrl} target="_blank" rel="noreferrer" style={{ color: '#15803d', fontWeight: 700 }}>
+                    {scheme.sourceName || (isHi ? 'आधिकारिक जानकारी' : 'Official information')} <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
+                  </a>
+                  {scheme.verifiedAt && <span> · {isHi ? 'स्रोत रिकॉर्ड तारीख' : 'Source recorded'}: {scheme.verifiedAt}</span>}
+                </div>
+              )}
             </div>
           )}
 
@@ -279,13 +300,51 @@ function SchemeDetailModal({ scheme, language, onClose }) {
  * Drop-in replacement for the original SchemeModule.jsx.
  * Compatible with the ModuleContainer props contract.
  */
-export default function SchemeModule({ language = 'en', isOffline = false, t, navigate }) {
+export default function SchemeModule({ language = 'en', isOffline = false, t, navigate, adminOnly = false }) {
+  const { user } = useAuth();
   const isHi = language === 'hi';
   const [showSchemeFinder, setShowSchemeFinder] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedScheme, setSelectedScheme] = useState(null); // detail modal
-  const [lastRefreshed] = useState(() => new Date().toLocaleTimeString('en-IN'));
+  const [schemes, setSchemes] = useState(STATIC_SCHEMES);
+  const [lastRefreshed, setLastRefreshed] = useState('');
+
+  const refreshSchemes = async () => {
+    try {
+      const response = await fetch('/api/schemes');
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!Array.isArray(data.schemes)) return;
+      setSchemes(data.schemes);
+      localStorage.setItem('kisanpulse_schemes_cache', JSON.stringify(data.schemes));
+      setLastRefreshed(new Date().toLocaleTimeString('en-IN'));
+    } catch { /* Keep the built-in catalogue available if the API is offline. */ }
+  };
+
+  useEffect(() => { refreshSchemes(); }, []);
+
+  const filteredSchemes = useMemo(() => {
+    return schemes.filter(s => {
+      const matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesQuery = !q
+        || s.nameEn.toLowerCase().includes(q)
+        || s.nameHi.includes(q)
+        || s.benefit.toLowerCase().includes(q)
+        || s.benefitHi.includes(q)
+        || s.category.toLowerCase().includes(q)
+        || s.categoryHi.toLowerCase().includes(q)
+        || (s.tags || []).some(tag => tag.toLowerCase().includes(q));
+      return matchesCategory && matchesQuery;
+    });
+  }, [schemes, searchQuery, selectedCategory]);
+
+  const categoryOptions = useMemo(() => {
+    const known = new Set(SCHEME_CATEGORIES.map(category => category.id));
+    const discovered = schemes.filter(s => !known.has(s.category)).map(s => ({ id: s.category, labelEn: s.category, labelHi: s.categoryHi || s.category }));
+    return [...SCHEME_CATEGORIES, ...discovered];
+  }, [schemes]);
 
   if (showSchemeFinder) {
     return (
@@ -298,18 +357,13 @@ export default function SchemeModule({ language = 'en', isOffline = false, t, na
     );
   }
 
-  const filteredSchemes = useMemo(() => {
-    return ALL_SCHEMES.filter(s => {
-      const matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
-      const q = searchQuery.toLowerCase().trim();
-      const matchesQuery = !q
-        || s.nameEn.toLowerCase().includes(q)
-        || s.nameHi.includes(q)
-        || s.benefit.toLowerCase().includes(q)
-        || s.category.toLowerCase().includes(q);
-      return matchesCategory && matchesQuery;
-    });
-  }, [searchQuery, selectedCategory]);
+  if (adminOnly) {
+    if (user?.role !== 'admin') return <div role="alert" style={{ padding: 24 }}>Admin access is required.</div>;
+    return <div style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem 1rem 80px' }}>
+      <h2 style={{ color: '#166534' }}>{isHi ? 'एडमिन संचालन' : 'Admin Operations'}</h2>
+      <SchemeAdminPortal language={language} schemes={schemes} onPublished={refreshSchemes} />
+    </div>;
+  }
 
   const liveCount = filteredSchemes.filter(s => s.source === 'live-feed').length;
 
@@ -321,12 +375,12 @@ export default function SchemeModule({ language = 'en', isOffline = false, t, na
         <div>
           <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#166534', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <FileCheck2 size={26} />
-            {isHi ? 'सरकारी कृषि योजनाएं एवं सब्सिडी' : 'Government Agricultural Schemes'}
+            {isHi ? 'सरकारी कृषि योजनाएं एवं सहायता कार्यक्रम' : 'Government Agricultural Schemes & Support'}
           </h2>
           <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0.3rem 0 0' }}>
             {isHi
-              ? 'पात्रता जांचें, AI से समझें, वीडियो देखें, और पंजीकरण सेवा लें।'
-              : 'Check eligibility · Watch AI-explained video · Let us register on your behalf.'}
+              ? '50 किसान-केंद्रित योजनाएँ और कार्यक्रम · हिंदी/अंग्रेज़ी जानकारी · पात्रता और आधिकारिक स्रोत देखें।'
+              : 'Browse 50 farmer-focused schemes and programmes with bilingual explanations and official links.'}
           </p>
         </div>
 
@@ -335,15 +389,19 @@ export default function SchemeModule({ language = 'en', isOffline = false, t, na
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: liveCount > 0 ? '#fef2f2' : '#f1f5f9', color: liveCount > 0 ? '#dc2626' : '#64748b', border: `1px solid ${liveCount > 0 ? '#fecaca' : '#e2e8f0'}`, borderRadius: 999, padding: '5px 12px', fontSize: 12.5, fontWeight: 700 }}>
             <Rss size={13} />
             {liveCount > 0
-              ? (isHi ? `${liveCount} नई लाइव योजनाएं` : `${liveCount} Live Feed Scheme${liveCount > 1 ? 's' : ''}`)
-              : (isHi ? 'लाइव फ़ीड' : 'Live Feed')}
+              ? (isHi ? `${liveCount} हाल की योजनाएँ` : `${liveCount} recent schemes`)
+              : (isHi ? `${schemes.length} कैटलॉग रिकॉर्ड` : `${schemes.length} catalogue entries`)}
           </span>
           <span style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
             <RefreshCw size={11} />
-            {isHi ? `अंतिम अपडेट: ${lastRefreshed}` : `Refreshed: ${lastRefreshed}`}
+            {lastRefreshed ? (isHi ? `डेटाबेस: ${lastRefreshed}` : `Database refreshed: ${lastRefreshed}`) : (isHi ? 'स्थानीय कैटलॉग' : 'Local catalogue')}
           </span>
         </div>
       </div>
+
+      <SchemeAlerts language={language} />
+      <MySchemeRequests language={language} />
+      {user?.role === 'admin' && <SchemeAdminPortal language={language} schemes={schemes} onPublished={refreshSchemes} />}
 
       <button type="button" onClick={() => setShowSchemeFinder(true)} style={{ marginBottom: 16, border: '1px solid #86efac', borderRadius: 10, padding: '10px 14px', background: '#f0fdf4', color: '#166534', cursor: 'pointer', fontWeight: 700 }}>
         {isHi ? 'मेरी स्थिति के अनुसार योजनाएँ खोजें →' : 'Find schemes for my situation →'}
@@ -374,7 +432,7 @@ export default function SchemeModule({ language = 'en', isOffline = false, t, na
             onChange={e => setSelectedCategory(e.target.value)}
             style={{ width: '100%', height: 40, padding: '0 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, background: '#f8fafc', fontWeight: 600 }}
           >
-            {SCHEME_CATEGORIES.map(c => (
+            {categoryOptions.map(c => (
               <option key={c.id} value={c.id}>{isHi ? c.labelHi : c.labelEn}</option>
             ))}
           </select>

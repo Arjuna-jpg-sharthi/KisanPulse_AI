@@ -19,8 +19,9 @@ import { Card, CardHeader, CardBody, CardFooter } from '../shared/Card';
 import { Button } from '../shared/Button';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useNetwork } from '../../context/NetworkContext';
+import { useMandiPrices } from '../../hooks/useMandiPrices';
 
-const MOCK_MANDI_DATA = [
+export const MOCK_MANDI_DATA = [
   {
     id: 1,
     cropKey: 'wheat',
@@ -154,28 +155,35 @@ const MOCK_MANDI_DATA = [
 export const SmartMandiView = () => {
   const { t, language } = useLanguage();
   const { isOffline, refreshSync } = useNetwork();
+  const { records: officialRecords, loading: officialLoading, error: officialError, source: mandiSource, snapshotAsOf, staleSnapshot, fetchedAt: mandiFetchedAt, notice: mandiNotice, refresh: refreshOfficialRates } = useMandiPrices();
+  const mandiRecords = officialRecords;
 
   const [selectedCropFilter, setSelectedCropFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sellCrop, setSellCrop] = useState('');
+  const [sellState, setSellState] = useState('');
+  const [sellQuantity, setSellQuantity] = useState('');
+  const [sellCostPerQuintal, setSellCostPerQuintal] = useState('');
 
   // Profit Calculator State
-  const [calcAcreage, setCalcAcreage] = useState(5);
-  const [calcYield, setCalcYield] = useState(20); // quintals per acre
-  const [calcPrice, setCalcPrice] = useState(2480); // ₹ per quintal
-  const [calcCost, setCalcCost] = useState(18000); // ₹ cost per acre
+  const [calcAcreage, setCalcAcreage] = useState('');
+  const [calcYield, setCalcYield] = useState(''); // farmer-entered quintals per acre
+  const [calcPrice, setCalcPrice] = useState(''); // farmer-entered ₹ per quintal
+  const [calcCost, setCalcCost] = useState(''); // farmer-entered ₹ cost per acre
 
-  const handleRefresh = () => {
+  const profitInputsComplete = [calcAcreage, calcYield, calcPrice, calcCost].every((value) => Number(value) > 0);
+
+  const handleRefresh = async () => {
     setIsRefreshing(true);
     refreshSync();
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 700);
+    await refreshOfficialRates({ force: true });
+    setIsRefreshing(false);
   };
 
   // Filtered Mandi Items
   const filteredMandiList = useMemo(() => {
-    return MOCK_MANDI_DATA.filter((item) => {
+    return mandiRecords.filter((item) => {
       const matchesCrop =
         selectedCropFilter === 'all' || item.cropKey === selectedCropFilter;
       const query = searchQuery.toLowerCase().trim();
@@ -188,7 +196,7 @@ export const SmartMandiView = () => {
 
       return matchesCrop && matchesQuery;
     });
-  }, [selectedCropFilter, searchQuery]);
+  }, [selectedCropFilter, searchQuery, mandiRecords]);
 
   // Farm Profit Calculations
   const profitResults = useMemo(() => {
@@ -206,6 +214,26 @@ export const SmartMandiView = () => {
       marginPct
     };
   }, [calcAcreage, calcYield, calcPrice, calcCost]);
+
+  const sellCropOptions = useMemo(() => [...new Set(officialRecords.map((item) => item.commodity).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [officialRecords]);
+  const sellStateOptions = useMemo(() => [...new Set(officialRecords.map((item) => item.state).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [officialRecords]);
+  const chosenSellCrop = sellCropOptions.includes(sellCrop) ? sellCrop : (sellCropOptions[0] || '');
+  const sellRecommendations = useMemo(() => {
+    if (!chosenSellCrop) return [];
+    const matching = officialRecords.filter((item) => item.commodity === chosenSellCrop && (!sellState || item.state === sellState));
+    const latestByMarket = new Map();
+    matching.forEach((item) => {
+      const key = [item.market, item.district, item.state].join('|');
+      const previous = latestByMarket.get(key);
+      if (!previous || item.arrivalDate > previous.arrivalDate || (item.arrivalDate === previous.arrivalDate && item.modalPrice > previous.modalPrice)) latestByMarket.set(key, item);
+    });
+    const costPerQuintal = Math.max(0, Number(sellCostPerQuintal) || 0);
+    return [...latestByMarket.values()].map((item) => ({
+      ...item,
+      estimatedNetPerQuintal: Math.max(0, item.modalPrice - costPerQuintal),
+      estimatedNetTotal: Math.max(0, item.modalPrice - costPerQuintal) * Math.max(0, Number(sellQuantity) || 0)
+    })).sort((a, b) => b.estimatedNetPerQuintal - a.estimatedNetPerQuintal || b.arrivalDate.localeCompare(a.arrivalDate)).slice(0, 5);
+  }, [officialRecords, chosenSellCrop, sellState, sellCostPerQuintal, sellQuantity]);
 
   return (
     <div className="kp-mandi-engine-view">
@@ -309,6 +337,63 @@ export const SmartMandiView = () => {
         </CardBody>
       </Card>
 
+      <Card style={{ marginBottom: '24px', border: '1px solid #bbf7d0', background: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 72%)' }}>
+        <CardHeader
+          icon={<Coins size={20} />}
+          iconVariant="accent"
+          title={language === 'hi' ? 'फसल बेचने की कमाई सलाहकार' : 'Sell-Smart Revenue Advisor'}
+          subtitle={language === 'hi' ? 'अपनी फसल और राज्य चुनें—आधिकारिक मंडी भाव के आधार पर बेहतर मंडी देखें।' : 'Choose your crop and state to compare reported mandis and estimated proceeds.'}
+        />
+        <CardBody>
+          <div className="kp-grid kp-grid-cols-2 kp-gap-4" style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: 'var(--kp-text-secondary)' }}>
+              {language === 'hi' ? 'आप कौन सी फसल बेचना चाहते हैं?' : 'Which crop are you looking to sell?'}
+              <select value={chosenSellCrop} onChange={(event) => setSellCrop(event.target.value)} disabled={!sellCropOptions.length} style={{ display: 'block', width: '100%', height: '42px', marginTop: '6px', padding: '0 12px', borderRadius: 'var(--kp-radius-md)', border: '1px solid var(--kp-border)', background: '#fff' }}>
+                {!sellCropOptions.length && <option value="">{officialLoading ? 'Loading official crops…' : 'No official crop data available'}</option>}
+                {sellCropOptions.map((crop) => <option key={crop} value={crop}>{crop}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: 'var(--kp-text-secondary)' }}>
+              {language === 'hi' ? 'राज्य (बेहतर स्थानीय तुलना के लिए)' : 'Your state (for a more relevant comparison)'}
+              <select value={sellState} onChange={(event) => setSellState(event.target.value)} disabled={!sellStateOptions.length} style={{ display: 'block', width: '100%', height: '42px', marginTop: '6px', padding: '0 12px', borderRadius: 'var(--kp-radius-md)', border: '1px solid var(--kp-border)', background: '#fff' }}>
+                <option value="">{language === 'hi' ? 'सभी राज्य' : 'Compare all states'}</option>
+                {sellStateOptions.map((state) => <option key={state} value={state}>{state}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: 'var(--kp-text-secondary)' }}>
+              {language === 'hi' ? 'बेचने की मात्रा (क्विंटल)' : 'Quantity to sell (quintals)'}
+              <input type="number" min="0.1" step="0.1" value={sellQuantity} onChange={(event) => setSellQuantity(event.target.value)} placeholder={language === 'hi' ? 'जैसे 20' : 'e.g. 20'} style={{ display: 'block', width: '100%', height: '42px', marginTop: '6px', padding: '0 12px', borderRadius: 'var(--kp-radius-md)', border: '1px solid var(--kp-border)' }} />
+            </label>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: 'var(--kp-text-secondary)' }}>
+              {language === 'hi' ? 'ढुलाई/अन्य खर्च (₹ प्रति क्विंटल)' : 'Transport/other cost (₹ per quintal)'}
+              <input type="number" min="0" step="1" value={sellCostPerQuintal} onChange={(event) => setSellCostPerQuintal(event.target.value)} placeholder="0" style={{ display: 'block', width: '100%', height: '42px', marginTop: '6px', padding: '0 12px', borderRadius: 'var(--kp-radius-md)', border: '1px solid var(--kp-border)' }} />
+            </label>
+          </div>
+          {sellRecommendations.length ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              {sellRecommendations.slice(0, 3).map((item, index) => (
+                <div key={`${item.state}-${item.district}-${item.market}`} style={{ padding: '16px', borderRadius: '12px', border: `1px solid ${index === 0 ? '#86efac' : 'var(--kp-border)'}`, background: index === 0 ? '#f0fdf4' : '#fff' }}>
+                  <div style={{ fontSize: '0.76rem', fontWeight: '800', color: index === 0 ? '#15803d' : 'var(--kp-text-muted)', marginBottom: '6px' }}>{index === 0 ? (language === 'hi' ? 'सबसे अच्छा अनुमानित विकल्प' : 'BEST ESTIMATED OPTION') : `${language === 'hi' ? 'विकल्प' : 'OPTION'} #${index + 1}`}</div>
+                  <strong style={{ display: 'block', color: 'var(--kp-text-primary)' }}>{item.market}</strong>
+                  <span style={{ display: 'block', margin: '3px 0 10px', color: 'var(--kp-text-muted)', fontSize: '0.8rem' }}>{item.district}, {item.state} · {item.arrivalDate}</span>
+                  <div style={{ fontWeight: '800', color: '#166534' }}>₹{item.estimatedNetPerQuintal.toLocaleString('en-IN')} <span style={{ fontSize: '0.78rem', fontWeight: '500' }}>/ quintal estimated after entered cost</span></div>
+                  {Number(sellQuantity) > 0 && <div style={{ marginTop: '4px', color: 'var(--kp-text-secondary)', fontSize: '0.84rem' }}>Est. total: <strong>₹{item.estimatedNetTotal.toLocaleString('en-IN')}</strong></div>}
+                  <div style={{ marginTop: '5px', color: 'var(--kp-text-muted)', fontSize: '0.78rem' }}>Reported modal rate ₹{item.modalPrice.toLocaleString('en-IN')} · range ₹{Number(item.minPrice || 0).toLocaleString('en-IN')}–₹{Number(item.maxPrice || 0).toLocaleString('en-IN')}</div>
+                  <button type="button" onClick={() => setCalcPrice(item.modalPrice)} style={{ marginTop: '10px', border: 0, padding: 0, background: 'transparent', color: 'var(--kp-primary-700)', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}>Use rate in profit calculator</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '14px 16px', borderRadius: '10px', background: '#fff7ed', color: '#9a3412', fontSize: '0.86rem' }}>
+              {officialLoading ? 'Loading official mandi rates…' : officialRecords.length ? 'No reported mandi rate matches this crop and state in the current official snapshot. Try another state or refresh later.' : 'No official price snapshot is available yet. Add the data.gov.in API key and refresh rates; this advisor will not invent a recommendation.'}
+            </div>
+          )}
+          <p style={{ margin: '12px 0 0', color: 'var(--kp-text-muted)', fontSize: '0.76rem' }}>
+            {staleSnapshot ? 'Saved historical snapshot; ' : ''}Ranking uses the latest official modal rate available per mandi minus only the transport/other cost you enter. It does not know distance, quality deductions, taxes, or buyer availability—confirm with the mandi before dispatch.
+          </p>
+        </CardBody>
+      </Card>
+
       {/* Main Grid: Mandi Rates on Left (2 cols), Profit Engine on Right (1 col) */}
       <div className="kp-grid kp-grid-cols-3 kp-gap-6" style={{ marginBottom: '32px' }}>
         {/* Mandi Rates List (2 Columns) */}
@@ -317,6 +402,9 @@ export const SmartMandiView = () => {
             <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--kp-text-muted)', textTransform: 'uppercase' }}>
               {filteredMandiList.length} Mandi Records Found
             </span>
+            <span className={`kp-badge ${officialRecords.length ? 'kp-badge-success' : 'kp-badge-warning'}`} title={mandiSource || 'Demonstration data'}>
+              {officialLoading ? 'Checking official rates…' : officialRecords.length ? `${mandiSource}${snapshotAsOf ? ` · through ${snapshotAsOf}` : ''}${staleSnapshot ? ' · cached' : ''}` : 'No official mandi rates available'}
+            </span>
             {isOffline && (
               <span className="kp-badge kp-badge-warning">
                 Cached Mandi Telemetry
@@ -324,7 +412,16 @@ export const SmartMandiView = () => {
             )}
           </div>
 
+          {mandiNotice && <div role="status" style={{ marginBottom: '12px', padding: '10px 14px', borderRadius: '10px', background: '#fff7ed', color: '#9a3412', fontSize: '0.82rem' }}>{mandiNotice}</div>}
+          <div style={{ margin: '-4px 0 12px', color: 'var(--kp-text-muted)', fontSize: '0.78rem' }}>
+            Prices are official daily wholesale reports (₹/quintal), not guaranteed farm-gate offers. {mandiFetchedAt ? `Fetched ${new Date(mandiFetchedAt).toLocaleString('en-IN')}.` : snapshotAsOf ? `Latest saved market date: ${snapshotAsOf}.` : ''} Confirm the rate with the mandi before transporting produce.
+          </div>
           <div className="kp-flex kp-flex-col kp-gap-4">
+            {!officialLoading && filteredMandiList.length === 0 && (
+              <Card><CardBody style={{ padding: '24px', color: 'var(--kp-text-muted)' }}>
+                {officialRecords.length ? 'No official rates match these filters.' : (officialError || 'Official mandi rates are unavailable. Add DATA_GOV_IN_API_KEY to the server .env and restart to load AGMARKNET data. No demo rates are presented as live prices.')}
+              </CardBody></Card>
+            )}
             {filteredMandiList.map((item) => {
               const isAboveMsp = item.msp > 0 ? item.modalPrice >= item.msp : true;
               return (
@@ -336,10 +433,10 @@ export const SmartMandiView = () => {
                           <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', color: 'var(--kp-text-primary)' }}>
                             {language === 'hi' ? item.cropHi : item.cropEn}
                           </h3>
-                          <span className={`kp-badge ${item.trend === 'up' ? 'kp-badge-success' : 'kp-badge-danger'}`}>
-                            {item.trend === 'up' ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                          {item.trendPct && <span className={`kp-badge ${item.trend === 'up' ? 'kp-badge-success' : item.trend === 'down' ? 'kp-badge-danger' : ''}`}>
+                            {item.trend === 'up' ? <ArrowUpRight size={13} /> : item.trend === 'down' ? <ArrowDownRight size={13} /> : null}
                             {item.trendPct}
-                          </span>
+                          </span>}
                         </div>
                         <div className="kp-flex kp-items-center kp-gap-2" style={{ marginTop: '4px', fontSize: '0.82rem', color: 'var(--kp-text-muted)' }}>
                           <MapPin size={14} />
@@ -431,10 +528,11 @@ export const SmartMandiView = () => {
                   </label>
                   <input
                     type="number"
-                    min="0.5"
-                    step="0.5"
+                    min="0.1"
+                    step="0.1"
+                    placeholder="Enter your land area"
                     value={calcAcreage}
-                    onChange={(e) => setCalcAcreage(Math.max(0.1, Number(e.target.value)))}
+                    onChange={(e) => setCalcAcreage(e.target.value)}
                     style={{
                       width: '100%',
                       height: '38px',
@@ -453,9 +551,11 @@ export const SmartMandiView = () => {
                   </label>
                   <input
                     type="number"
-                    min="1"
+                    min="0.1"
+                    step="0.1"
+                    placeholder="Enter expected yield"
                     value={calcYield}
-                    onChange={(e) => setCalcYield(Math.max(1, Number(e.target.value)))}
+                    onChange={(e) => setCalcYield(e.target.value)}
                     style={{
                       width: '100%',
                       height: '38px',
@@ -474,10 +574,11 @@ export const SmartMandiView = () => {
                   </label>
                   <input
                     type="number"
-                    min="500"
-                    step="50"
+                    min="1"
+                    step="1"
+                    placeholder="Enter a quoted price"
                     value={calcPrice}
-                    onChange={(e) => setCalcPrice(Math.max(100, Number(e.target.value)))}
+                    onChange={(e) => setCalcPrice(e.target.value)}
                     style={{
                       width: '100%',
                       height: '38px',
@@ -496,10 +597,11 @@ export const SmartMandiView = () => {
                   </label>
                   <input
                     type="number"
-                    min="1000"
-                    step="500"
+                    min="0"
+                    step="100"
+                    placeholder="Enter cultivation cost"
                     value={calcCost}
-                    onChange={(e) => setCalcCost(Math.max(0, Number(e.target.value)))}
+                    onChange={(e) => setCalcCost(e.target.value)}
                     style={{
                       width: '100%',
                       height: '38px',
@@ -514,7 +616,7 @@ export const SmartMandiView = () => {
                 <div className="kp-divider" />
 
                 {/* Profit Result Display Box */}
-                <div
+                {profitInputsComplete ? <div
                   style={{
                     background: profitResults.netProfit >= 0 ? '#f0fdf4' : '#fef2f2',
                     border: `1px solid ${profitResults.netProfit >= 0 ? '#bbf7d0' : '#fecaca'}`,
@@ -557,7 +659,7 @@ export const SmartMandiView = () => {
                       </span>
                     </div>
                   </div>
-                </div>
+                </div> : <div style={{ border: '1px dashed var(--kp-border)', borderRadius: 'var(--kp-radius-lg)', padding: 16, color: 'var(--kp-text-muted)', fontSize: 13 }}>Enter your own land area, expected yield, selling price, and cultivation cost to see an estimate. Results are only estimates, not guaranteed returns.</div>}
               </div>
             </CardBody>
           </Card>

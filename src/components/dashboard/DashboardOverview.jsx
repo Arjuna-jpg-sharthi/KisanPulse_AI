@@ -14,15 +14,39 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight
+  , ShoppingBasket
 } from 'lucide-react';
 import { Card, CardHeader, CardBody, CardFooter } from '../shared/Card';
 import { Button } from '../shared/Button';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useNetwork } from '../../context/NetworkContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const DashboardOverview = ({ onNavigate }) => {
   const { t, language } = useLanguage();
   const { isOffline } = useNetwork();
+  const { user } = useAuth();
+
+  if (user?.role === 'buyer') return (
+    <div className="kp-dashboard-view" style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <section style={{ padding: 28, marginBottom: 20, borderRadius: 18, color: '#fff', background: 'linear-gradient(120deg,#14532d,#16a34a)' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700 }}><ShoppingBasket size={18}/> KisanPulse Buyer Desk</span>
+        <h1 style={{ margin: '12px 0 8px', fontSize: 30 }}>{language === 'hi' ? 'नमस्ते, खरीदार!' : 'Welcome, Buyer!'}</h1>
+        <p style={{ margin: 0, opacity: .92 }}>{language === 'hi' ? 'किसानों की फसल पोस्ट देखें, अपनी खरीद मांग साझा करें और मंडी भाव की तुलना करें।' : 'Browse farmer crop listings, post your buying demand, and compare mandi prices.'}</p>
+      </section>
+      <div className="kp-grid kp-grid-cols-2 kp-gap-4">
+        <Card hoverable onClick={() => onNavigate('marketplace')} style={{ cursor: 'pointer' }}>
+          <CardHeader title={language === 'hi' ? 'किसान व्यापार बाज़ार' : 'Farmer marketplace'} subtitle={language === 'hi' ? 'फसल खोजें या खरीद मांग पोस्ट करें।' : 'Find available crops or publish a buyer demand.'} />
+          <CardBody><Button onClick={(event) => { event.stopPropagation(); onNavigate('marketplace'); }}><ShoppingBasket size={16} style={{ marginRight: 7 }}/>{language === 'hi' ? 'बाज़ार खोलें' : 'Open marketplace'}</Button></CardBody>
+        </Card>
+        <Card hoverable onClick={() => onNavigate('mandi')} style={{ cursor: 'pointer' }}>
+          <CardHeader title={language === 'hi' ? 'मंडी भाव तुलना' : 'Mandi price comparison'} subtitle={language === 'hi' ? 'खरीद निर्णय से पहले उपलब्ध भाव देखें।' : 'Review available market rates before sourcing.'} />
+          <CardBody><Button variant="outline" onClick={(event) => { event.stopPropagation(); onNavigate('mandi'); }}>{language === 'hi' ? 'भाव देखें' : 'View mandi prices'}</Button></CardBody>
+        </Card>
+      </div>
+      <p style={{ color: '#64748b', marginTop: 20 }}>{isOffline ? (language === 'hi' ? 'ऑफलाइन स्थिति: केवल सहेजा हुआ डेटा उपलब्ध हो सकता है।' : 'Offline: only saved data may be available.') : (language === 'hi' ? 'खरीदार खाते में बाज़ार, मंडी तुलना, खाता और सेटिंग्स उपलब्ध हैं।' : 'Buyer accounts include Marketplace, Mandi comparison, Account, and Settings.')}</p>
+    </div>
+  );
 
   // Mock Mandi Highlights Data for Indian Agriculture APMCs
   const mandiHighlights = [

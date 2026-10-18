@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './farming.css';
+import { fetchOpenWeatherForecast } from '../../services/weatherService';
 import {
   CROPS_CATALOG,
-  INITIAL_SAMPLE_MARKETS,
   COMMON_SYMPTOMS,
   SAMPLE_WEATHER_HUBS
 } from './farmingData';
@@ -33,8 +33,31 @@ export default function FarmingModule({
   // ==========================================
   const [selectedCropId, setSelectedCropId] = useState('wheat');
   const [customCropName, setCustomCropName] = useState('');
-  const [quantity, setQuantity] = useState(50); // Quintals
-  const [markets, setMarkets] = useState(INITIAL_SAMPLE_MARKETS);
+  const [quantity, setQuantity] = useState(''); // enter the actual harvest quantity
+  const [markets, setMarkets] = useState([]);
+  const [officialMandiRecords, setOfficialMandiRecords] = useState([]);
+  const [officialMandiLoading, setOfficialMandiLoading] = useState(false);
+  const [officialMandiError, setOfficialMandiError] = useState('');
+  const [officialMandiAsOf, setOfficialMandiAsOf] = useState('');
+
+  const loadOfficialMandi = async (forceRefresh = false) => {
+    setOfficialMandiLoading(true);
+    setOfficialMandiError('');
+    try {
+      const response = await fetch(`/api/mandi-prices?limit=1000${forceRefresh ? '&refresh=1' : ''}`, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Official mandi prices could not be loaded.');
+      setOfficialMandiRecords(Array.isArray(data.records) ? data.records : []);
+      setOfficialMandiAsOf(data.snapshotAsOf || '');
+      if (!Array.isArray(data.records) || data.records.length === 0) setOfficialMandiError('The official feed returned no price records.');
+    } catch (error) {
+      setOfficialMandiError(error.message || 'Could not load official mandi prices.');
+    } finally {
+      setOfficialMandiLoading(false);
+    }
+  };
+
+  useEffect(() => { loadOfficialMandi(); }, []);
   const [showBuyerModal, setShowBuyerModal] = useState(false);
   const [buyerDraftTargetMarket, setBuyerDraftTargetMarket] = useState(null);
   const [buyerNotes, setBuyerNotes] = useState('');
@@ -49,6 +72,32 @@ export default function FarmingModule({
       stages: []
     };
   }, [selectedCropId, customCropName]);
+  useEffect(() => {
+    if (!officialMandiRecords.length) return;
+    const aliases = {
+      wheat: ['wheat'], paddy: ['rice', 'paddy'], mustard: ['mustard', 'rapeseed'], cotton: ['cotton'], potato: ['potato'],
+      tomato: ['tomato'], onion: ['onion'], soybean: ['soybean', 'soya'], maize: ['maize', 'corn'], gram: ['gram', 'chickpea', 'bengal gram'],
+      groundnut: ['groundnut', 'peanut'], sugarcane: ['sugarcane']
+    }[selectedCropId] || [currentCrop.name.split(/[(/]/)[0].trim().toLowerCase()];
+    const normalise = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const matching = officialMandiRecords.filter((record) => {
+      const commodity = normalise(record.commodity);
+      return aliases.some((alias) => commodity.includes(normalise(alias)));
+    });
+    const newestPerMarket = new Map();
+    for (const record of matching) {
+      const key = `${record.market}|${record.district}|${record.state}`;
+      if (!newestPerMarket.has(key)) newestPerMarket.set(key, record);
+    }
+    const liveOptions = [...newestPerMarket.values()].slice(0, 6).map((record, index) => ({
+      id: `official-${selectedCropId}-${index}-${record.arrivalDate}`,
+      name: [record.market, record.district, record.state].filter(Boolean).filter((value, i, all) => all.indexOf(value) === i).join(', '),
+      sellingPrice: String(record.modalPrice ?? ''), distanceKm: '', transportCost: '', loadingCost: '', mandiFee: '', otherCosts: '',
+      verified: true, dataSource: 'data.gov.in / AGMARKNET', updateDate: record.arrivalDate || officialMandiAsOf,
+      minPrice: record.minPrice, maxPrice: record.maxPrice, state: record.state, district: record.district, commodity: record.commodity
+    }));
+    setMarkets(liveOptions);
+  }, [selectedCropId, currentCrop.name, officialMandiRecords, officialMandiAsOf]);
 
   // Market validation and ranking
   const validation = useMemo(() => {
@@ -62,10 +111,12 @@ export default function FarmingModule({
     return evaluateAndRankMarkets(quantity, markets);
   }, [quantity, markets, validation.isValid]);
 
+  const canCompareMarkets = validation.isValid && Number(quantity) > 0 && markets.length >= 2;
+
   const marketExplanation = useMemo(() => {
-    if (rankedMarkets.length < 2) return null;
+    if (!canCompareMarkets || rankedMarkets.length < 2) return null;
     return explainMarketRankings(rankedMarkets, quantity);
-  }, [rankedMarkets, quantity]);
+  }, [rankedMarkets, quantity, canCompareMarkets]);
 
   // Handlers for market inputs
   const handleMarketChange = (id, field, value) => {
@@ -77,17 +128,9 @@ export default function FarmingModule({
   const handleAddMarket = () => {
     const newId = `market-${Date.now()}`;
     const newMarket = {
-      id: newId,
-      name: `Mandi ${markets.length + 1}`,
-      sellingPrice: currentCrop.defaultPrice || 2400,
-      distanceKm: 30,
-      transportCost: 1500,
-      loadingCost: 400,
-      mandiFee: 300,
-      otherCosts: 100,
-      verified: false,
-      dataSource: 'Farmer Entry / Unverified',
-      updateDate: 'Today'
+      id: newId, name: `Market option ${markets.length + 1}`, sellingPrice: '',
+      distanceKm: '', transportCost: '', loadingCost: '', mandiFee: '', otherCosts: '',
+      verified: false, dataSource: 'Farmer-entered estimate', updateDate: ''
     };
     setMarkets(prev => [...prev, newMarket]);
   };
@@ -268,6 +311,23 @@ export default function FarmingModule({
       }
 
       try {
+        try {
+          const live = await fetchOpenWeatherForecast(selectedHub.lat, selectedHub.lon, selectedHub.name, selectedHub.state);
+          if (!isCancelled) {
+            const temp = live.current?.temp ?? selectedHub.temp;
+            const humidity = live.current?.humidity ?? selectedHub.humidity;
+            const wind = live.current?.wind ?? selectedHub.windSpeedKm;
+            const rainChance = live.forecast?.[0]?.rainChance ?? 0;
+            const cond = live.current?.condition || 'Current conditions';
+            const advisory = rainChance > 40 ? 'Rain is likely. Delay spraying and check field drainage.' : wind > 16 ? 'High wind may cause spray drift. Avoid spraying in gusty conditions.' : 'No major rain or wind warning. Check the crop and product label before spraying.';
+            setWeatherData({ ...selectedHub, temp, humidity, windSpeedKm: wind, rainChancePct: rainChance, condition: cond, advisory, source: 'OpenWeather live forecast' });
+            setWeatherIsLive(true);
+            setWeatherCacheDate(live.lastUpdated || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' IST');
+          }
+          return;
+        } catch (openWeatherError) {
+          console.warn('OpenWeather unavailable; trying the no-key backup forecast.', openWeatherError);
+        }
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${selectedHub.lat}&longitude=${selectedHub.lon}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&hourly=precipitation_probability&timezone=auto`;
         const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
         if (!res.ok) throw new Error('API response not ok');
@@ -412,13 +472,16 @@ export default function FarmingModule({
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <span className="farming-badge farming-badge-illustrative">
-                  Benchmark Sample Data Active
+                  {officialMandiLoading ? 'Loading official mandi rates…' : officialMandiRecords.length ? `${markets.length} matching official quotes${officialMandiAsOf ? ` · data through ${officialMandiAsOf}` : ''}` : 'No official quotes loaded'}
                 </span>
+                <button type="button" className="farming-btn farming-btn-outline farming-btn-sm" onClick={() => loadOfficialMandi(true)} disabled={officialMandiLoading}>↻ Refresh official rates</button>
+                {officialMandiError && <div className="farming-field-error" role="status" style={{ marginBottom: '1rem' }}>{officialMandiError} Check that you are signed in, DATA_GOV_IN_API_KEY is set in the server .env, and the API server has been restarted.</div>}
                 <span className="farming-badge farming-badge-neutral">
                   Formula: Net = Gross - All Costs
                 </span>
               </div>
             </div>
+
 
             <div className="farming-grid-2">
               <div className="farming-form-group">
@@ -463,7 +526,7 @@ export default function FarmingModule({
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
                 />
-                {validation.errors.quantity && (
+                {quantity !== '' && validation.errors.quantity && (
                   <div className="farming-field-error">{validation.errors.quantity}</div>
                 )}
               </div>
@@ -489,16 +552,19 @@ export default function FarmingModule({
               </button>
             </div>
 
-            {validation.errors.marketsGeneral && (
+            {markets.length > 0 && validation.errors.marketsGeneral && (
               <div className="farming-field-error" style={{ marginBottom: '1rem' }}>
                 {validation.errors.marketsGeneral}
               </div>
             )}
 
+            {markets.length === 0 && <div className="farming-empty-state">No market data is pre-filled. Add a market and enter a real quote and costs to compare net proceeds.</div>}
             <div className="farming-grid-3">
-              {rankedMarkets.map((market) => {
+              {markets.map((sourceMarket) => {
+                const market = rankedMarkets.find((item) => item.id === sourceMarket.id) || { ...sourceMarket, rank: null };
+                const canRank = validation.isValid && Number(quantity) > 0;
                 const err = validation.errors[`market_${market.id}`] || {};
-                const isWinner = market.rank === 1;
+                const isWinner = canRank && market.rank === 1;
 
                 return (
                   <div
@@ -513,7 +579,7 @@ export default function FarmingModule({
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                       <span style={{ fontSize: '0.8rem', fontWeight: '700', color: isWinner ? '#166534' : '#6b7280' }}>
-                        Rank #{market.rank}
+                        {canRank ? `Rank #${market.rank}` : 'Enter quote details'}
                       </span>
                       {markets.length > 2 && (
                         <button
@@ -532,6 +598,7 @@ export default function FarmingModule({
                         type="text"
                         className={`farming-input ${err.name ? 'farming-input-error' : ''}`}
                         value={market.name}
+                        placeholder="Enter mandi or buyer name"
                         onChange={(e) => handleMarketChange(market.id, 'name', e.target.value)}
                       />
                       {err.name && <div className="farming-field-error">{err.name}</div>}
@@ -544,9 +611,11 @@ export default function FarmingModule({
                         min="0"
                         className={`farming-input ${err.sellingPrice ? 'farming-input-error' : ''}`}
                         value={market.sellingPrice}
+                        placeholder="Enter quoted rate"
                         onChange={(e) => handleMarketChange(market.id, 'sellingPrice', e.target.value === '' ? '' : Number(e.target.value))}
                       />
                       {err.sellingPrice && <div className="farming-field-error">{err.sellingPrice}</div>}
+                      {market.verified && <small style={{ display: 'block', color: '#64748b', marginTop: '4px' }}>Official modal price · data.gov.in / AGMARKNET · arrival {market.updateDate || 'date unavailable'} · costs must be entered locally</small>}
                     </div>
 
                     {/* Breakdown of editable costs */}
@@ -607,21 +676,21 @@ export default function FarmingModule({
                     <div className="farming-market-metrics">
                       <div className="farming-metric-box">
                         <div className="farming-metric-label">Gross Revenue</div>
-                        <div className="farming-metric-value">{formatCurrency(market.grossRevenue)}</div>
+                        <div className="farming-metric-value">{canRank ? formatCurrency(market.grossRevenue) : '—'}</div>
                       </div>
                       <div className="farming-metric-box">
                         <div className="farming-metric-label">Total Costs</div>
-                        <div className="farming-metric-value farming-text-cost">-{formatCurrency(market.totalCosts)}</div>
+                        <div className="farming-metric-value farming-text-cost">{canRank ? formatCurrency(market.totalCosts) : '—'}</div>
                       </div>
                       <div className="farming-metric-box" style={{ gridColumn: 'span 2', background: isWinner ? '#dcfce7' : '#f3f4f6' }}>
                         <div className="farming-metric-label" style={{ color: isWinner ? '#166534' : '#4b5563' }}>
                           Estimated In-Hand Net Proceeds
                         </div>
                         <div className={`farming-metric-value ${isWinner ? 'farming-text-success' : ''}`} style={{ fontSize: '1.25rem' }}>
-                          {formatCurrency(market.netProceeds)}
+                          {canRank ? formatCurrency(market.netProceeds) : '—'}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.2rem' }}>
-                          Net Realization: <strong>{formatCurrency(market.netProceedsPerQuintal)} / quintal</strong>
+                          Net Realization: <strong>{canRank ? `${formatCurrency(market.netProceedsPerQuintal)} / quintal` : 'Enter all required values'}</strong>
                         </div>
                       </div>
                     </div>
@@ -629,7 +698,7 @@ export default function FarmingModule({
                     {/* Metadata & Actions */}
                     <div style={{ marginTop: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span className={`farming-badge ${market.verified ? 'farming-badge-verified' : 'farming-badge-illustrative'}`}>
-                        {market.verified ? '✓ Verified Source' : '⚠️ Illustrative Benchmark'}
+                        {market.verified ? '✓ Verified Source' : 'Unverified · farmer-entered'}
                       </span>
                       <button
                         className="farming-btn farming-btn-outline farming-btn-sm"
@@ -662,7 +731,7 @@ export default function FarmingModule({
             )}
 
             {/* SVG Comparison Chart */}
-            {rankedMarkets.length >= 2 && (
+            {canCompareMarkets && (
               <div className="farming-chart-wrap">
                 <div className="farming-chart-header">
                   <span>📊 Financial Breakdown Comparison (Gross vs Costs vs Net)</span>
@@ -813,7 +882,8 @@ export default function FarmingModule({
             </div>
 
             <form onSubmit={handleSaveHealthReport}>
-              <div className="farming-grid-2">
+
+            <div className="farming-grid-2">
                 <div className="farming-form-group">
                   <label className="farming-label">Crop Under Observation</label>
                   <select
@@ -1065,6 +1135,7 @@ export default function FarmingModule({
               <strong>📱 Device Sensor Clarification:</strong> Smartphones do NOT possess internal physical sensors capable of detecting subsurface soil moisture. Recommendations are based on your reported field conditions and crop physiology rules. We avoid unsupported pseudo-precise water volume claims (such as "apply 37.4 liters") in favor of actionable operational timing windows.
             </div>
 
+
             <div className="farming-grid-2">
               <div className="farming-form-group">
                 <label className="farming-label">Select Crop</label>
@@ -1134,10 +1205,10 @@ export default function FarmingModule({
                 <input
                   type="number"
                   min="0"
-                  max="60"
+                  max="365"
                   className="farming-input"
                   value={irrigDaysAgo}
-                  onChange={(e) => setIrrigDaysAgo(e.target.value === '' ? 0 : Number(e.target.value))}
+                  onChange={(e) => setIrrigDaysAgo(e.target.value === '' ? 0 : Math.min(365, Math.max(0, Number(e.target.value) || 0)))}
                 />
               </div>
             </div>

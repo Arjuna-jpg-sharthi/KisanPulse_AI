@@ -1,17 +1,30 @@
 import React from 'react';
-import { LayoutDashboard, TrendingUp, Sprout, FileCheck2, ShoppingBasket } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Sprout, FileCheck2, ShoppingBasket, UserRound, ShieldCheck, CloudSun, Calculator, Clock3 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 export const MobileNav = ({ currentView, onNavigate }) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
 
-  const mobileItems = [
+  const allItems = [
     { id: 'dashboard', labelKey: 'navDashboard', defaultLabel: 'Dashboard', icon: LayoutDashboard },
     { id: 'mandi', labelKey: 'navMandi', defaultLabel: 'Mandi', icon: TrendingUp },
     { id: 'marketplace', labelKey: 'navMarketplace', defaultLabel: 'Market', icon: ShoppingBasket },
     { id: 'farming', labelKey: 'navCropHealth', defaultLabel: 'Farming', icon: Sprout },
-    { id: 'schemes', labelKey: 'navSchemes', defaultLabel: 'Schemes', icon: FileCheck2 }
+    { id: 'schemes', labelKey: 'navSchemes', defaultLabel: 'Schemes', icon: FileCheck2 },
+    { id: 'advisors', labelKey: 'navAdvisors', defaultLabel: 'Advisors', icon: Clock3 },
+    { id: 'weather', labelKey: 'navWeather', defaultLabel: 'Weather', icon: CloudSun },
+    { id: 'land', labelKey: 'navLand', defaultLabel: 'Land', icon: Calculator },
+    { id: 'account', labelKey: 'navAccount', defaultLabel: 'Account', icon: UserRound },
+    { id: 'admin', labelKey: 'navAdmin', defaultLabel: 'Admin', icon: ShieldCheck }
   ];
+  const allowedIds = user?.role === 'buyer'
+    ? ['dashboard', 'mandi', 'marketplace', 'account']
+    : user?.role === 'admin'
+      ? ['dashboard', 'mandi', 'marketplace', 'farming', 'schemes', 'admin']
+      : ['dashboard', 'mandi', 'marketplace', 'farming', 'schemes'];
+  const mobileItems = allItems.filter((item) => allowedIds.includes(item.id));
 
   return (
     <nav className="kp-mobile-nav" aria-label="Mobile Bottom Navigation">

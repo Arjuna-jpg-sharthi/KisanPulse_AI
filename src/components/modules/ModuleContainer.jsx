@@ -24,7 +24,7 @@ const dynamicModuleRegistry = import.meta.glob([
   '/src/modules/schemes/SchemeModule.jsx'
 ]);
 
-export const ModuleContainer = ({ moduleId, onNavigate }) => {
+export const ModuleContainer = ({ moduleId, onNavigate, adminOnly = false }) => {
   const { language, t } = useLanguage();
   const { isOffline } = useNetwork();
 
@@ -57,7 +57,8 @@ export const ModuleContainer = ({ moduleId, onNavigate }) => {
     language,
     isOffline,
     t,
-    navigate: onNavigate
+    navigate: onNavigate,
+    adminOnly
   };
 
   const title = isFarming

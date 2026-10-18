@@ -152,50 +152,7 @@ export const CROPS_CATALOG = [
   }
 ];
 
-export const INITIAL_SAMPLE_MARKETS = [
-  {
-    id: 'market-1',
-    name: 'Azadpur APMC Mandi (Delhi)',
-    sellingPrice: 2480,
-    distanceKm: 90,
-    transportCost: 3500,
-    loadingCost: 500,
-    mandiFee: 600,
-    otherCosts: 250,
-    verified: false,
-    dataSource: 'Agmarknet Benchmark Modal Price',
-    updateDate: '16-Oct-2026',
-    notes: 'Major national terminal market. High buyer volume but long distance haul and high municipal fees.'
-  },
-  {
-    id: 'market-2',
-    name: 'Khanna Grain Market (Punjab APMC)',
-    sellingPrice: 2375,
-    distanceKm: 28,
-    transportCost: 1200,
-    loadingCost: 400,
-    mandiFee: 450,
-    otherCosts: 150,
-    verified: true,
-    dataSource: 'e-NAM Verified Mandi Rate',
-    updateDate: '17-Oct-2026',
-    notes: 'Regional APMC with digitized weighbridge and regulated trade commissions.'
-  },
-  {
-    id: 'market-3',
-    name: 'Direct Agro-Processing Hub (Local Miller)',
-    sellingPrice: 2320,
-    distanceKm: 9,
-    transportCost: 400,
-    loadingCost: 300,
-    mandiFee: 0,
-    otherCosts: 100,
-    verified: true,
-    dataSource: 'Private Buyer Farm-Gate Offer',
-    updateDate: '17-Oct-2026',
-    notes: 'Local flour miller direct purchase. Lower headline price but zero mandi cess and minimal local transport.'
-  }
-];
+export const INITIAL_SAMPLE_MARKETS = [];
 
 export const COMMON_SYMPTOMS = [
   'Yellowing of lower leaves (Chlorosis)',
