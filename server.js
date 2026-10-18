@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const app = express();
 const port = Number(process.env.PORT || process.env.API_PORT || 3001);
-const resourceId = '9ef84268-d588-465a-a308-a864a43d0070';
-const sourceUrl = 'https://www.data.gov.in/resource/current-daily-price-various-commodities-various-markets-mandi';
+const resourceId = '35985678-0d79-46b4-9ed6-6f13308a1d24';
+const sourceUrl = 'https://www.data.gov.in/resource/variety-wise-daily-market-prices-data-commodity';
 const cacheTtlMs = 15 * 60 * 1000;
 const responseCache = new Map();
 const allowedFilters = ['state', 'district', 'market', 'commodity', 'arrival_date'];
@@ -84,10 +84,10 @@ const loadCsvSnapshot = async (filters) => {
         commodity: String(record.commodity ?? ''),
         variety: String(record.variety ?? ''),
         grade: String(record.grade ?? ''),
-        arrivalDate: String(record.arrival_date ?? record.date ?? ''),
-        minPrice: parsePrice(record.min_price),
-        maxPrice: parsePrice(record.max_price),
-        modalPrice: parsePrice(record.modal_price)
+        arrivalDate: String(record.arrival_date ?? record.Arrival_Date ?? record.date ?? ''),
+        minPrice: parsePrice(record.min_price ?? record.Min_Price),
+        maxPrice: parsePrice(record.max_price ?? record.Max_Price),
+        modalPrice: parsePrice(record.modal_price ?? record.Modal_Price)
       }));
     if (records.length === 0) return null;
 
@@ -96,7 +96,7 @@ const loadCsvSnapshot = async (filters) => {
       return String(record[key] ?? '').toLowerCase() === value.toLowerCase();
     }));
     return {
-      source: 'CSV snapshot (AGMARKNET / data.gov.in)',
+      source: 'CSV snapshot (Variety-wise market prices / data.gov.in)',
       sourceUrl,
       fetchedAt: null,
       snapshotAsOf: records.map((record) => record.arrivalDate).sort((a, b) => parseDate(b) - parseDate(a))[0] || '',
@@ -169,8 +169,10 @@ app.get('/api/mandi-prices', async (req, res) => {
   url.searchParams.set('api-key', apiKey);
   url.searchParams.set('format', 'json');
   url.searchParams.set('limit', String(limit));
+  url.searchParams.set('sort[Arrival_Date]', 'desc');
   for (const [field, value] of Object.entries(filters)) {
-    url.searchParams.set(`filters[${field}]`, value);
+    const apiField = { state: 'State', district: 'District', market: 'Market', commodity: 'Commodity', arrival_date: 'Arrival_Date' }[field] || field;
+    url.searchParams.set(`filters[${apiField}]`, value);
   }
 
   try {
@@ -200,16 +202,16 @@ app.get('/api/mandi-prices', async (req, res) => {
 
     const records = (Array.isArray(body.records) ? body.records : [])
       .map((record) => ({
-        state: String(record.state ?? ''),
-        district: String(record.district ?? ''),
-        market: String(record.market ?? ''),
-        commodity: String(record.commodity ?? ''),
-        variety: String(record.variety ?? ''),
-        grade: String(record.grade ?? ''),
-        arrivalDate: String(record.arrival_date ?? ''),
-        minPrice: parsePrice(record.min_price),
-        maxPrice: parsePrice(record.max_price),
-        modalPrice: parsePrice(record.modal_price)
+        state: String(record.state ?? record.State ?? ''),
+        district: String(record.district ?? record.District ?? ''),
+        market: String(record.market ?? record.Market ?? ''),
+        commodity: String(record.commodity ?? record.Commodity ?? ''),
+        variety: String(record.variety ?? record.Variety ?? ''),
+        grade: String(record.grade ?? record.Grade ?? ''),
+        arrivalDate: String(record.arrival_date ?? record.Arrival_Date ?? ''),
+        minPrice: parsePrice(record.min_price ?? record.Min_Price),
+        maxPrice: parsePrice(record.max_price ?? record.Max_Price),
+        modalPrice: parsePrice(record.modal_price ?? record.Modal_Price)
       }))
       .sort((a, b) => parseDate(b.arrivalDate) - parseDate(a.arrivalDate));
 

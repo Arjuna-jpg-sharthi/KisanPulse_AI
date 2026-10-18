@@ -10,17 +10,17 @@ The dashboard and Smart Mandi view read reported prices from the data.gov.in man
 - Start command: `npm start`
 - Environment variable: `DATA_GOV_IN_API_KEY` (add the key as the value in Render's Environment settings)
 
-The app's `/api/mandi-prices` endpoint returns the latest available government records and caches each query for 15 minutes. AGMARKNET records are daily reports, not second-by-second market quotes. The UI displays each record's reported date and does not invent arrivals, price trends, or MSP comparisons.
+The app's `/api/mandi-prices` endpoint reads the [Variety-wise Daily Market Prices Data of Commodity](https://www.data.gov.in/resource/variety-wise-daily-market-prices-data-commodity) resource, sorts the records newest first, and caches each query for 15 minutes. The resource contains extensive historical data, so the CSV exporter stores only the newest 20,000 records. AGMARKNET records are daily reports, not second-by-second market quotes. The UI displays each record's reported date and does not invent arrivals, price trends, or MSP comparisons.
 
 ### CSV snapshot fallback
 
 If the Render service cannot reach the live provider, the server can return records from `data/mandi-prices.csv`. The file is a daily snapshot and must be refreshed; it is not live data. To generate it from a computer that can reach data.gov.in:
 
 1. Copy `.env.example` to `.env` and enter the key you already have in Render in the local `.env` file. Keep `.env` private; it is ignored by Git.
-2. Run `npm install`, then `npm run export:mandi`. This writes the source records to `data/mandi-prices.csv` without printing the key.
+2. Run `npm install`, then `npm run export:mandi`. This writes up to the 20,000 newest source records to `data/mandi-prices.csv` without printing the key.
 3. Commit and push the updated CSV. Render will redeploy and use the snapshot when the live request fails.
 
-The official catalog currently describes daily wholesale min, max, and modal prices, but its downloadable ZIP may be unavailable. Always show the record date and verify prices with AGMARKNET before transactions.
+The source provides daily wholesale min, max, and modal prices. Always show the record date and verify prices with AGMARKNET before transactions.
 
 ### Local development
 

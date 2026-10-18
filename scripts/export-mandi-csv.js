@@ -9,9 +9,10 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const resourceId = '9ef84268-d588-465a-a308-a864a43d0070';
+const resourceId = '35985678-0d79-46b4-9ed6-6f13308a1d24';
 const limit = 1000;
-const fields = ['arrival_date', 'state', 'district', 'market', 'commodity', 'variety', 'grade', 'min_price', 'max_price', 'modal_price'];
+const maxRecords = 20000;
+const fields = ['Arrival_Date', 'State', 'District', 'Market', 'Commodity', 'Variety', 'Grade', 'Min_Price', 'Max_Price', 'Modal_Price'];
 const quote = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 const rows = [];
 
@@ -21,6 +22,7 @@ for (let offset = 0; ; offset += limit) {
   url.searchParams.set('format', 'json');
   url.searchParams.set('limit', String(limit));
   url.searchParams.set('offset', String(offset));
+  url.searchParams.set('sort[Arrival_Date]', 'desc');
 
   let response;
   try {
@@ -40,9 +42,9 @@ for (let offset = 0; ; offset += limit) {
     process.exit(1);
   }
   const batch = Array.isArray(body.records) ? body.records : [];
-  rows.push(...batch);
+  rows.push(...batch.slice(0, maxRecords - rows.length));
   console.log(`Fetched ${rows.length} records...`);
-  if (batch.length < limit || rows.length >= Number(body.total || Infinity)) break;
+  if (batch.length < limit || rows.length >= maxRecords || rows.length >= Number(body.total || Infinity)) break;
   await new Promise((resolve) => setTimeout(resolve, 250));
 }
 
@@ -55,4 +57,5 @@ const csv = [
 
 await mkdir(path.dirname(outputPath), { recursive: true });
 await writeFile(outputPath, csv, 'utf8');
-console.log(`Saved ${rows.length} records to data/mandi-prices.csv. Prices are the source's daily reports, not live quotes.`);
+const latestDate = String(rows[0]?.Arrival_Date ?? '');
+console.log(`Saved ${rows.length} newest records (latest report date ${latestDate}) to data/mandi-prices.csv from the variety-wise daily market price resource.`);
